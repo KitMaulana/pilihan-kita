@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AccessAttempt;
 use App\Models\Election;
 use App\Models\Voter;
+use App\Services\FaceMatchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -189,7 +190,7 @@ class KioskIdentifyTest extends TestCase
         [, $h] = $this->device();
         $voter = $this->voterWithFace(1);
         Voter::whereKey($voter->id)->update(['is_active' => false]);
-        app(\App\Services\FaceMatchService::class)->flush();
+        app(FaceMatchService::class)->flush();
 
         // Template pemilih nonaktif dikeluarkan dari matriks → tidak dikenali.
         $this->postJson('/api/v1/kiosk/identify', $this->identifyPayload($this->vec(1)), $h)->assertStatus(422);

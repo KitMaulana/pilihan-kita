@@ -7,6 +7,7 @@ use App\Models\Election;
 use App\Models\Vote;
 use App\Models\Voter;
 use App\Services\LedgerService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -90,7 +91,7 @@ class VotingTest extends TestCase
         try {
             DB::table('voter_turnouts')->insert(['election_id' => $electionId, 'voter_id' => $voterId]);
             $this->fail('Primary key voter_turnouts seharusnya menolak duplikat.');
-        } catch (\Illuminate\Database\QueryException) {
+        } catch (QueryException) {
             // sesuai harapan
         }
         DB::table('voter_turnouts')->where(['election_id' => $electionId, 'voter_id' => $voterId])->delete();

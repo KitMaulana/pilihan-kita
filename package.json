@@ -2,8 +2,10 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "dev": "vite"
+        "predev": "node scripts/copy-wasm.mjs",
+        "dev": "vite",
+        "prebuild": "node scripts/copy-wasm.mjs",
+        "build": "vite build"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

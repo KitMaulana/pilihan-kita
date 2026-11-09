@@ -8,11 +8,24 @@ use App\Models\FaceTemplate;
 use App\Models\KioskDevice;
 use App\Models\User;
 use App\Models\Voter;
+use App\Services\FaceMatchService;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
     protected const MODEL = 'buffalo_s/w600k_mbf';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Pengaman: RefreshDatabase akan MENGHAPUS isi database. Tolak bila bukan SQLite in-memory
+        // (mis. karena `php artisan config:cache` aktif sehingga phpunit.xml diabaikan).
+        if (config('database.default') !== 'sqlite' || config('database.connections.sqlite.database') !== ':memory:') {
+            fwrite(STDERR, "\nTES DIHENTIKAN: koneksi DB bukan sqlite :memory:. Jalankan `php artisan config:clear` dulu.\n");
+            exit(1);
+        }
+    }
 
     protected function admin(): User
     {
@@ -69,7 +82,7 @@ abstract class TestCase extends BaseTestCase
             'embedding' => FaceTemplate::pack($this->vec($axis)),
             'model_version' => self::MODEL,
         ]);
-        app(\App\Services\FaceMatchService::class)->flush();
+        app(FaceMatchService::class)->flush();
 
         return $voter;
     }

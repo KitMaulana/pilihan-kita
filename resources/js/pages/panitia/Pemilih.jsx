@@ -1,0 +1,381 @@
+import { useState } from 'react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, errorMessage } from '../../lib/api';
+import { number } from '../../lib/format';
+import { useAuth } from '../../features/auth/useAuth';
+import { Alert, Badge, EmptyState, Field, Modal, Pagination, Spinner, toast } from '../../components/ui';
+
+function ImportPanel({ onDone }) {
+    const [type, setType] = useState('student');
+    const [file, setFile] = useState(null);
+    const [preview, setPreview] = useState(null);
+    const [error, setError] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [showAll, setShowAll] = useState(false);
+
+    async function doPreview(e) {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        setPreview(null);
+        try {
+            const fd = new FormData();
+            fd.append('type', type);
+            fd.append('file', file);
+            const { data } = await api.post('/panitia/voters/import/preview', fd);
+            setPreview(data);
+        } catch (err) {
+            setError(errorMessage(err));
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function commit() {
+        setBusy(true);
+        try {
+            const { data } = await api.post('/panitia/voters/import/commit', { token: preview.token });
+            toast.success(data.message);
+            setPreview(null);
+            setFile(null);
+            onDone();
+        } catch (err) {
+            setError(errorMessage(err));
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    const rows = preview ? (showAll ? preview.ready : preview.ready.slice(0, 20)) : [];
+
+    return (
+        <div className="space-y-4">
+            <form onSubmit={doPreview} className="grid gap-4 sm:grid-cols-[auto_1fr_auto] sm:items-end">
+                <Field label="Jenis">
+                    {(id) => (
+                        <select id={id} className="input" value={type} onChange={(e) => setType(e.target.value)}>
+                            <option value="student">Siswa (nisn,nama,kelas,tanggal_lahir)</option>
+                            <option value="teacher">Guru (nip,nama,tanggal_lahir,kode)</option>
+                        </select>
+                    )}
+                </Field>
+                <Field label="Berkas CSV (maks. 2.000 baris)">
+                    {(id) => <input id={id} type="file" accept=".csv,text/csv" className="input py-2.5" onChange={(e) => setFile(e.target.files[0] || null)} required />}
+                </Field>
+                <button className="btn-primary" disabled={!file || busy}>
+                    {busy && !preview ? 'Membaca…' : 'Pratinjau'}
+                </button>
+            </form>
+            <p className="text-xs text-slate-500">
+                Unduh templat:{' '}
+                <a className="text-brand-700 underline" href="/api/v1/panitia/voters/template/student">
+                    siswa
+                </a>{' '}
+                ·{' '}
+                <a className="text-brand-700 underline" href="/api/v1/panitia/voters/template/teacher">
+                    guru
+                </a>
+                . Tanggal: YYYY-MM-DD atau DD/MM/YYYY. Di Excel, format kolom NISN/NIP sebagai <em>Teks</em> agar nol di depan tidak hilang.
+            </p>
+            {error && <Alert type="danger">{error}</Alert>}
+
+            {preview && (
+                <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2 text-sm">
+                        <Badge color="blue">Total {preview.summary.total}</Badge>
+                        <Badge color="green">Siap {preview.summary.ready}</Badge>
+                        <Badge color="gray">Baru {preview.summary.new}</Badge>
+                        <Badge color="gray">Diperbarui {preview.summary.update}</Badge>
+                        <Badge color={preview.summary.problems ? 'red' : 'gray'}>Bermasalah {preview.summary.problems}</Badge>
+                    </div>
+
+                    {preview.problems.length > 0 && (
+                        <div>
+                            <h3 className="mb-2 font-semibold text-red-700">Baris bermasalah (tidak akan diimpor)</h3>
+                            <div className="table-wrap">
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Baris</th>
+                                            <th>Nomor induk</th>
+                                            <th>Nama</th>
+                                            <th>Alasan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {preview.problems.map((p, i) => (
+                                            <tr key={i} className="bg-red-50/50">
+                                                <td>{p.line}</td>
+                                                <td className="font-mono">{p.identifier || p.raw?.nisn || p.raw?.nip || '—'}</td>
+                                                <td>{p.name || '—'}</td>
+                                                <td className="text-red-700">{p.errors.join('; ')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    <div>
+                        <h3 className="mb-2 font-semibold text-emerald-700">Baris siap</h3>
+                        <div className="table-wrap">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Baris</th>
+                                        <th>Nomor induk</th>
+                                        <th>Nama</th>
+                                        <th>Kelas/Kode</th>
+                                        <th>Tgl lahir</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((r) => (
+                                        <tr key={r.line}>
+                                            <td>{r.line}</td>
+                                            <td className="font-mono">{r.identifier || '—'}</td>
+                                            <td>{r.name}</td>
+                                            <td>{r.class_name || r.distinguisher || '—'}</td>
+                                            <td>{r.birth_date}</td>
+                                            <td>{r.action === 'baru' ? <Badge color="green">baru</Badge> : <Badge color="yellow">perbarui</Badge>}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {preview.ready.length > 20 && (
+                            <button className="btn-ghost btn-sm mt-2" onClick={() => setShowAll(!showAll)}>
+                                {showAll ? 'Ringkas' : `Tampilkan semua (${preview.ready.length})`}
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-2">
+                        <button className="btn-secondary" onClick={() => setPreview(null)} disabled={busy}>
+                            Batal
+                        </button>
+                        <button className="btn-primary" onClick={commit} disabled={busy || preview.summary.ready === 0}>
+                            {busy ? 'Menyimpan…' : `Impor ${preview.summary.ready} baris siap`}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function EditVoter({ voter, onClose }) {
+    const qc = useQueryClient();
+    const { isAdmin } = useAuth();
+    const [form, setForm] = useState({
+        name: voter.name,
+        class_name: voter.class_name || '',
+        birth_date: voter.birth_date,
+        distinguisher: voter.distinguisher || '',
+        is_active: voter.is_active,
+    });
+    const [error, setError] = useState(null);
+
+    const save = useMutation({
+        mutationFn: () => api.patch(`/panitia/voters/${voter.id}`, { ...form, class_name: form.class_name || null, distinguisher: form.distinguisher || null }),
+        onSuccess: () => {
+            toast.success('Data pemilih disimpan.');
+            qc.invalidateQueries({ queryKey: ['voters'] });
+            onClose();
+        },
+        onError: (e) => setError(errorMessage(e)),
+    });
+    const removeFace = useMutation({
+        mutationFn: () => api.delete(`/panitia/face-templates/${voter.id}`),
+        onSuccess: () => {
+            toast.success('Template wajah dihapus.');
+            qc.invalidateQueries({ queryKey: ['voters'] });
+            onClose();
+        },
+        onError: (e) => setError(errorMessage(e)),
+    });
+
+    return (
+        <Modal
+            open
+            onClose={onClose}
+            title={`Ubah: ${voter.name}`}
+            footer={
+                <>
+                    {isAdmin && voter.face?.registered && (
+                        <button className="btn-danger mr-auto" onClick={() => confirm('Hapus template wajah pemilih ini?') && removeFace.mutate()}>
+                            Hapus wajah
+                        </button>
+                    )}
+                    <button className="btn-secondary" onClick={onClose}>
+                        Batal
+                    </button>
+                    <button className="btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>
+                        Simpan
+                    </button>
+                </>
+            }
+        >
+            <div className="grid gap-4">
+                <Field label="Nama">{(id) => <input id={id} className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
+                {voter.type === 'student' ? (
+                    <Field label="Kelas">{(id) => <input id={id} className="input" value={form.class_name} onChange={(e) => setForm({ ...form, class_name: e.target.value })} />}</Field>
+                ) : (
+                    <Field label="Kode guru (pembeda bila nama + tgl lahir sama)">
+                        {(id) => <input id={id} className="input" value={form.distinguisher} onChange={(e) => setForm({ ...form, distinguisher: e.target.value })} />}
+                    </Field>
+                )}
+                <Field label="Tanggal lahir">{(id) => <input id={id} type="date" className="input" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />}</Field>
+                <label className="flex items-center gap-2">
+                    <input type="checkbox" className="size-5" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
+                    Pemilih aktif (berhak memilih)
+                </label>
+                {error && <Alert type="danger">{error}</Alert>}
+            </div>
+        </Modal>
+    );
+}
+
+export default function Pemilih() {
+    const qc = useQueryClient();
+    const [filters, setFilters] = useState({ q: '', type: '', class_name: '', face: '', status: '', page: 1 });
+    const [showImport, setShowImport] = useState(false);
+    const [editing, setEditing] = useState(null);
+
+    const classes = useQuery({ queryKey: ['voter-classes'], queryFn: () => api.get('/panitia/voters/classes').then((r) => r.data.data) });
+    const list = useQuery({
+        queryKey: ['voters', filters],
+        queryFn: () => api.get('/panitia/voters', { params: { ...filters, per_page: 50 } }).then((r) => r.data),
+        placeholderData: keepPreviousData,
+    });
+
+    const unlock = useMutation({
+        mutationFn: (id) => api.post(`/panitia/voters/${id}/unlock`),
+        onSuccess: () => {
+            toast.success('Pemilih dibuka kuncinya.');
+            qc.invalidateQueries({ queryKey: ['voters'] });
+        },
+        onError: (e) => toast.error(errorMessage(e)),
+    });
+
+    const set = (k) => (e) => setFilters({ ...filters, [k]: e.target.value, page: 1 });
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h1 className="text-2xl font-bold text-slate-900">Pemilih</h1>
+                <button className="btn-primary" onClick={() => setShowImport(!showImport)}>
+                    {showImport ? 'Tutup impor' : 'Impor CSV'}
+                </button>
+            </div>
+
+            {showImport && (
+                <section className="card">
+                    <ImportPanel
+                        onDone={() => {
+                            qc.invalidateQueries({ queryKey: ['voters'] });
+                            qc.invalidateQueries({ queryKey: ['voter-classes'] });
+                        }}
+                    />
+                </section>
+            )}
+
+            <section className="card">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    <input className="input lg:col-span-2" placeholder="Cari nama / NISN / NIP / kelas" value={filters.q} onChange={set('q')} aria-label="Cari" />
+                    <select className="input" value={filters.type} onChange={set('type')} aria-label="Jenis">
+                        <option value="">Semua jenis</option>
+                        <option value="student">Siswa</option>
+                        <option value="teacher">Guru</option>
+                    </select>
+                    <select className="input" value={filters.class_name} onChange={set('class_name')} aria-label="Kelas">
+                        <option value="">Semua kelas</option>
+                        {classes.data?.map((c) => (
+                            <option key={c}>{c}</option>
+                        ))}
+                    </select>
+                    <select className="input" value={filters.face || filters.status} onChange={(e) => {
+                        const v = e.target.value;
+                        const isFace = ['yes', 'no', 'duplicate'].includes(v);
+                        setFilters({ ...filters, face: isFace ? v : '', status: isFace ? '' : v, page: 1 });
+                    }} aria-label="Status">
+                        <option value="">Semua status</option>
+                        <option value="no">Belum terdaftar wajah</option>
+                        <option value="yes">Sudah terdaftar wajah</option>
+                        <option value="duplicate">Wajah ganda ditandai</option>
+                        <option value="voted">Sudah memilih</option>
+                        <option value="not_voted">Belum memilih</option>
+                        <option value="locked">Terkunci</option>
+                        <option value="inactive">Nonaktif</option>
+                    </select>
+                </div>
+
+                <div className="mt-4">
+                    {list.isLoading ? (
+                        <Spinner label="Memuat…" />
+                    ) : list.data?.data.length === 0 ? (
+                        <EmptyState>Tidak ada pemilih yang cocok.</EmptyState>
+                    ) : (
+                        <div className="table-wrap">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nama</th>
+                                        <th>Nomor induk</th>
+                                        <th>Kelas</th>
+                                        <th>Tgl lahir</th>
+                                        <th>Wajah</th>
+                                        <th>Status</th>
+                                        <th />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {list.data?.data.map((v) => (
+                                        <tr key={v.id} className={v.is_active ? '' : 'opacity-50'}>
+                                            <td className="font-medium">{v.name}</td>
+                                            <td className="font-mono text-xs">{v.identifier || (v.distinguisher ? `kode ${v.distinguisher}` : '— (tanpa NIP)')}</td>
+                                            <td>{v.type === 'teacher' ? 'Guru' : v.class_name}</td>
+                                            <td>{v.birth_date}</td>
+                                            <td>
+                                                {v.face?.registered ? (
+                                                    v.face.duplicate_of_voter_id ? (
+                                                        <Badge color="red">Ganda? ({v.face.duplicate_score})</Badge>
+                                                    ) : (
+                                                        <Badge color="green">Terdaftar</Badge>
+                                                    )
+                                                ) : (
+                                                    <Badge>Belum</Badge>
+                                                )}
+                                            </td>
+                                            <td className="space-x-1">
+                                                {v.has_voted && <Badge color="blue">Sudah memilih</Badge>}
+                                                {v.is_locked && <Badge color="red">Terkunci</Badge>}
+                                                {!v.is_locked && v.failed_attempts > 0 && <Badge color="yellow">{v.failed_attempts}× salah</Badge>}
+                                            </td>
+                                            <td className="text-right whitespace-nowrap">
+                                                {v.is_locked && (
+                                                    <button className="btn-secondary btn-sm mr-1" onClick={() => unlock.mutate(v.id)}>
+                                                        Buka kunci
+                                                    </button>
+                                                )}
+                                                <button className="btn-ghost btn-sm" onClick={() => setEditing(v)}>
+                                                    Ubah
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    <Pagination meta={list.data?.meta} onPage={(page) => setFilters({ ...filters, page })} />
+                    {list.data?.meta && <p className="mt-2 text-xs text-slate-500">Total {number(list.data.meta.total)} pemilih sesuai filter.</p>}
+                </div>
+            </section>
+
+            {editing && <EditVoter voter={editing} onClose={() => setEditing(null)} />}
+        </div>
+    );
+}

@@ -20,7 +20,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
         Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-        Route::get('me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+        Route::get('me', [AuthController::class, 'me']); // tamu → {user: null} (bukan 401)
     });
 
     // ── Publik ───────────────────────────────────────────────────────────────

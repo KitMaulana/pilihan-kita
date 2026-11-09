@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Voter;
+use App\Providers\AppServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -91,7 +92,7 @@ class KioskFallbackTest extends TestCase
     public function test_batas_laju_per_perangkat(): void
     {
         config(['security.kiosk_rate.fallback' => 3]);
-        $this->app->getProvider(\App\Providers\AppServiceProvider::class)->boot();
+        $this->app->getProvider(AppServiceProvider::class)->boot();
         $this->openElection();
         [, $h] = $this->device();
         $payload = ['type' => 'student', 'identifier' => '0000000000', 'birth_date' => '2009-07-21'];
