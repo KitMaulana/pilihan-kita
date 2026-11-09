@@ -15,7 +15,9 @@ let loading = null;
 const timings = {};
 
 async function fetchModel(url, onProgress) {
-    const res = await fetch(url, { cache: 'force-cache' });
+    // Cache bawaan (bukan force-cache): respons 404 lama tidak boleh tersangkut di cache peramban.
+    // Cache model untuk kiosk ditangani service worker (public/sw.js), hanya untuk respons 200.
+    const res = await fetch(url);
     if (!res.ok) {
         throw new Error(`Model tidak ditemukan: ${url} (HTTP ${res.status}). Lihat public/models/README.md.`);
     }
