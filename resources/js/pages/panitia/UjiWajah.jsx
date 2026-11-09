@@ -211,7 +211,6 @@ export default function UjiWajah() {
                     <div className="mt-3 flex flex-wrap gap-2">
                         <button
                             className="btn-secondary btn-sm"
-                            disabled={engine.state !== 'ready'}
                             onClick={() => {
                                 cameraOn ? stop() : start();
                                 setCameraOn(!cameraOn);
