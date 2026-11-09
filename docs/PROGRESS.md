@@ -43,7 +43,7 @@ Terakhir diperbarui: 2026-11-09.
 
 ## Masalah tersisa / risiko
 
-- 🔴 **Model `det_500m.onnx` & `w600k_mbf.onnx` belum diuji nyata.** Kode mengikuti spesifikasi InsightFace (SCRFD: letterbox kiri-atas, (x−127.5)/128, RGB, 2 anchor, stride 8/16/32; ArcFace: penjajaran 5 titik 112×112, (x−127.5)/127.5). Keluaran SCRFD dikenali dari bentuk tensor sehingga tidak bergantung nama/urutan. Verifikasi pertama: buka `/panitia/uji-wajah`, pastikan wajah terdeteksi dan skor orang sama ≫ orang berbeda.
+- 🟠 **Model terpasang (2026-11-09); bentuk keluaran SCRFD & ArcFace sudah dicek cocok dengan kode, tetapi akurasi pada wajah nyata belum diuji.** Kode mengikuti spesifikasi InsightFace (SCRFD: letterbox kiri-atas, (x−127.5)/128, RGB, 2 anchor, stride 8/16/32; ArcFace: penjajaran 5 titik 112×112, (x−127.5)/127.5). Keluaran SCRFD dikenali dari bentuk tensor sehingga tidak bergantung nama/urutan. Verifikasi pertama: buka `/panitia/uji-wajah`, pastikan wajah terdeteksi dan skor orang sama ≫ orang berbeda.
 - 🟠 Arah toleh liveness diterima kiri ATAU kanan (menghindari risiko salah pemetaan arah kamera depan). Ambang di `features/face/config.js` (`LIVENESS`) perlu dikalibrasi di tablet nyata.
 - 🟠 Video rekaman wajah yang berkedip & menoleh dapat lolos liveness aktif (diterima sebagai risiko sisa; mitigasi: konfirmasi nama, log, anomali, panitia di lokasi).
 - 🟠 Performa server sungguhan belum diukur di Hostinger.

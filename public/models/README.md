@@ -27,10 +27,9 @@ Folder ini di-`.gitignore`. Model tidak di-commit karena ukuran dan **lisensi**.
 | Berkas | SHA-256 |
 |---|---|
 | `face_landmarker.task` | `64184E229B263107BC2B804C6625DB1341FF2BB731874B0BCC2FE6544E0BC9FF` (diunduh 2026-11-09) |
-| `det_500m.onnx` | _isi saat mengunduh_ |
-| `w600k_mbf.onnx` | _isi saat mengunduh_ |
+| `det_500m.onnx` | `5E4447F50245BBD7966BD6C0FA52938C61474A04EC7DEF48753668A9D8B4EA3A` (2.524.817 byte, 2026-11-09) |
+| `w600k_mbf.onnx` | `9CC6E4A75F0E2BF0B1AED94578F144D15175F357BDC05E815E5C4A02B319EB4F` (13.616.099 byte, 2026-11-09) |
 
-> Isi baris yang kosong ketika model pertama kali diunduh, lalu gunakan sebagai acuan di server.
 
 ## Lisensi (WAJIB dibaca)
 

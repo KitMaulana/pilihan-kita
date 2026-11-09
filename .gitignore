@@ -33,3 +33,7 @@ yarn-error.log
 /storage/simulation*.json
 /scripts/*.json
 /akurasi-*.json
+
+# Berkas unduhan model mentah (zip) — hanya 2 .onnx terpilih yang dipakai di public/models/
+/PILKETOS/
+*.zip
