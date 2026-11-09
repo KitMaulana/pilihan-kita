@@ -5,10 +5,10 @@ import { errorMessage } from '../../lib/api';
 import { Alert, Field } from '../../components/ui';
 
 export default function LoginPage() {
-    const { user, login } = useAuth();
+    const { user, login: doLogin } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const [email, setEmail] = useState('');
+    const [login, setLogin] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -20,7 +20,7 @@ export default function LoginPage() {
         setBusy(true);
         setError(null);
         try {
-            await login(email, password);
+            await doLogin(login, password);
             navigate(location.state?.from || '/panitia', { replace: true });
         } catch (err) {
             setError(errorMessage(err, 'Gagal masuk.'));
@@ -37,8 +37,8 @@ export default function LoginPage() {
                     <h1 className="mt-2 text-xl font-bold text-slate-900">Masuk Panitia</h1>
                     <p className="text-sm text-slate-500">E-Voting OSIS SMAN 1 Ciruas</p>
                 </div>
-                <Field label="Email">
-                    {(id) => <input id={id} type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required autoFocus />}
+                <Field label="Username atau email">
+                    {(id) => <input id={id} className="input" value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" autoCapitalize="none" required autoFocus />}
                 </Field>
                 <Field label="Kata sandi">
                     {(id) => <input id={id} type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />}

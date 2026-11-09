@@ -20,6 +20,7 @@ class UserStoreRequest extends FormRequest
 
         return [
             'name' => [$user ? 'sometimes' : 'required', 'string', 'max:120'],
+            'username' => ['nullable', 'string', 'min:3', 'max:40', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')->ignore($user?->id)],
             'email' => [$user ? 'sometimes' : 'required', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user?->id)],
             'password' => [$user ? 'nullable' : 'required', Password::min(8)],
             'role' => [$user ? 'sometimes' : 'required', Rule::in([User::ROLE_ADMIN, User::ROLE_PANITIA])],

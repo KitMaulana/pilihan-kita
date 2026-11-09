@@ -5,7 +5,7 @@ import { Alert, Badge, Field, Modal, Spinner, toast } from '../../components/ui'
 
 function UserForm({ user, onClose }) {
     const qc = useQueryClient();
-    const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', password: '', role: user?.role || 'panitia', is_active: user?.is_active ?? true });
+    const [form, setForm] = useState({ name: user?.name || '', username: user?.username || '', email: user?.email || '', password: '', role: user?.role || 'panitia', is_active: user?.is_active ?? true });
     const [error, setError] = useState(null);
     const save = useMutation({
         mutationFn: () => (user ? api.patch(`/panitia/users/${user.id}`, form) : api.post('/panitia/users', form)),
@@ -35,6 +35,7 @@ function UserForm({ user, onClose }) {
         >
             <div className="grid gap-4">
                 <Field label="Nama">{(id) => <input id={id} className="input" value={form.name} onChange={set('name')} />}</Field>
+                <Field label="Username (untuk masuk)">{(id) => <input id={id} className="input" value={form.username} onChange={set('username')} autoCapitalize="none" />}</Field>
                 <Field label="Email">{(id) => <input id={id} type="email" className="input" value={form.email} onChange={set('email')} />}</Field>
                 <Field label={user ? 'Kata sandi baru (kosongkan bila tidak diubah)' : 'Kata sandi (min. 8 karakter)'}>
                     {(id) => <input id={id} type="password" className="input" value={form.password} onChange={set('password')} autoComplete="new-password" />}
@@ -76,6 +77,7 @@ export default function Pengguna() {
                             <thead>
                                 <tr>
                                     <th>Nama</th>
+                                    <th>Username</th>
                                     <th>Email</th>
                                     <th>Peran</th>
                                     <th>Status</th>
@@ -86,6 +88,7 @@ export default function Pengguna() {
                                 {list.data?.map((u) => (
                                     <tr key={u.id}>
                                         <td>{u.name}</td>
+                                        <td className="font-mono text-xs">{u.username || '—'}</td>
                                         <td>{u.email}</td>
                                         <td>
                                             <Badge color={u.role === 'admin' ? 'blue' : 'gray'}>{u.role}</Badge>

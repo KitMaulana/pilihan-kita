@@ -15,8 +15,8 @@ export function useAuth() {
         user: query.data ?? null,
         isLoading: query.isLoading,
         isAdmin: query.data?.role === 'admin',
-        async login(email, password) {
-            const { data } = await api.post('/auth/login', { email, password, remember: true });
+        async login(login, password) {
+            const { data } = await api.post('/auth/login', { login, password, remember: true });
             qc.setQueryData(['me'], data.user);
             return data.user;
         },

@@ -20,12 +20,24 @@ class AuthTest extends TestCase
         $this->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('user.id', $user->id);
     }
 
+    public function test_login_dengan_username(): void
+    {
+        User::factory()->admin()->create(['username' => 'admin', 'password' => 'adminkita']);
+
+        $this->postJson('/api/v1/auth/login', ['login' => 'admin', 'password' => 'adminkita'])
+            ->assertOk()->assertJsonPath('user.username', 'admin')->assertJsonPath('user.role', 'admin');
+
+        $this->postJson('/api/v1/auth/logout')->assertOk();
+        $this->postJson('/api/v1/auth/login', ['login' => 'admin', 'password' => 'salah'])
+            ->assertStatus(422)->assertJsonValidationErrors('login');
+    }
+
     public function test_kata_sandi_salah_ditolak(): void
     {
         User::factory()->create(['email' => 'p@x.test', 'password' => 'rahasia123']);
 
         $this->postJson('/api/v1/auth/login', ['email' => 'p@x.test', 'password' => 'salah'])
-            ->assertStatus(422)->assertJsonValidationErrors('email');
+            ->assertStatus(422)->assertJsonValidationErrors('login');
     }
 
     public function test_akun_nonaktif_tidak_bisa_login(): void

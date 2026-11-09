@@ -58,4 +58,4 @@ Terakhir diperbarui: 2026-11-09.
 
 ## Akun lokal (dev)
 
-`admin@pilihankita.local` / `admin12345`, `panitia@pilihankita.local` / `panitia12345` (dari `SEED_*` di `.env` lokal). **Produksi: isi `SEED_ADMIN_PASSWORD` kuat atau biarkan kosong agar dibuat acak.**
+**admin / adminkita** (login boleh dengan username atau email), panitia / panitia12345 (lokal). Sandi bawaan admin `adminkita` lemah — **ganti di menu Pengguna atau isi `SEED_ADMIN_PASSWORD` sebelum `db:seed` di produksi.**

@@ -15,10 +15,13 @@ class AuthController extends Controller
 {
     public function login(LoginRequest $request, AuditService $audit): JsonResponse
     {
-        $credentials = $request->only('email', 'password') + ['is_active' => true];
+        $login = trim($request->input('login'));
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        $credentials = [$field => $login, 'password' => $request->input('password'), 'is_active' => true];
 
         if (! Auth::guard('web')->attempt($credentials, $request->boolean('remember'))) {
-            throw ValidationException::withMessages(['email' => 'Email atau kata sandi salah.']);
+            throw ValidationException::withMessages(['login' => 'Username/email atau kata sandi salah.']);
         }
 
         if ($request->hasSession()) {

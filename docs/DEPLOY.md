@@ -17,7 +17,7 @@ Tidak ada Node.js/Python di server.
    cp .env.example .env    # lalu edit — lihat bagian 2
    php artisan key:generate
    php artisan migrate --force
-   php artisan db:seed --force      # akun awal; catat sandi yang dicetak bila SEED_* kosong
+   php artisan db:seed --force      # akun awal; login: username `admin`; sandi bawaan `adminkita` bila SEED_ADMIN_PASSWORD kosong — ganti segera
    php artisan storage:link         # foto kandidat
    php artisan config:cache && php artisan route:cache && php artisan view:cache
    ```
@@ -55,7 +55,7 @@ LOG_LEVEL=warning
 FACE_MODEL_VERSION=buffalo_s/w600k_mbf
 SECURITY_CSP=true
 SEED_ADMIN_EMAIL=admin@sekolah.sch.id
-SEED_ADMIN_PASSWORD=        # kosong → dibuat acak & dicetak saat db:seed
+SEED_ADMIN_PASSWORD=GantiDenganSandiKuat   # kosong → bawaan "adminkita" (LEMAH, jangan dipakai di produksi)
 ```
 
 ## 3. Setiap rilis

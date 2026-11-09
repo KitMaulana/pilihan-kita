@@ -18,7 +18,7 @@ Laravel 12 · PHP 8.2+ · MySQL/MariaDB · Sanctum · React 19 + Vite + Tailwind
 ```powershell
 composer install
 npm install
-copy .env.example .env      # set DB_DATABASE=pilihan_kita, SEED_ADMIN_PASSWORD=...
+copy .env.example .env      # set DB_DATABASE=pilihan_kita (admin bawaan: admin / adminkita)
 php artisan key:generate
 php artisan migrate --seed  # akun admin/panitia + data contoh (APP_ENV=local)
 php artisan storage:link

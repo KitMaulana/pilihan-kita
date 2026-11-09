@@ -11,10 +11,18 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    /** Terima `login` (username atau email); `email` tetap diterima demi kompatibilitas. */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('login') && $this->filled('email')) {
+            $this->merge(['login' => $this->input('email')]);
+        }
+    }
+
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'max:190'],
+            'login' => ['required', 'string', 'max:190'],
             'password' => ['required', 'string', 'max:190'],
             'remember' => ['sometimes', 'boolean'],
         ];
