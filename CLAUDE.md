@@ -25,7 +25,7 @@ Lalu baca docs/PROGRESS.md. Jangan menulis kode dulu.
 Ringkas pemahamanmu dalam 10 poin, sebutkan hal yang masih ambigu atau bertentangan,
 dan usulkan rencana untuk Fase 1 (daftar file yang akan dibuat). Tunggu persetujuan saya.
 Aturan kerja: Bahasa Indonesia; kerjakan satu fase satu waktu; jangan loncat fase;
-jangan menambah dependensi di luar §4 tanpa izin; jangan commit model .onnx, .env, atau data pemilih.
+jangan menambah dependensi di luar §4 tanpa izin; jangan commit .env atau data pemilih (model wajah di public/models/ boleh, atas keputusan pemilik).
 ```
 
 ### Prompt untuk sesi baru / setelah /compact
@@ -108,7 +108,7 @@ npm install -D @vitejs/plugin-react tailwindcss @tailwindcss/vite
 8. **Mobile/tablet-first:** uji lebar 360px & tablet 800–1280px, orientasi potret & lanskap.
 9. Teks UI Bahasa Indonesia baku; waktu disimpan UTC, tampil `Asia/Jakarta`.
 10. Dilarang `migrate:fresh` / `db:seed` ulang di produksi. Dilarang menghapus data di luar cakupan tugas.
-11. Kunci rahasia & `.env` tidak masuk Git. Model `.onnx` **tidak masuk Git** (unggah manual ke server).
+11. Kunci rahasia & `.env` tidak masuk Git. Model wajah di `public/models/` (3 berkas terpilih) **ikut di-commit atas keputusan pemilik 2026-11-10** — lisensi non-komersial di `public/models/NOTICE.md`; model/zip lain tetap tidak boleh masuk Git.
 
 ---
 
@@ -134,7 +134,7 @@ resources/js/
 ├─ pages/publik/ (HasilLangsung, CekResi)
 ├─ features/face/ (faceEngine.js, useCamera.js, liveness.js, align.js)
 └─ lib/ (api.js, device.js)
-public/models/         ← .onnx diunggah MANUAL, masuk .gitignore
+public/models/         ← 3 berkas model ikut di-commit (lihat NOTICE.md)
 app/Services/ (VoterImportService, FaceMatchService, VoteService, ResultService, AuditService)
 ```
 

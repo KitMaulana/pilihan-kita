@@ -30,7 +30,8 @@ Terakhir diperbarui: 2026-11-09.
 6. Pemilih yang terkunci di jalur cadangan **tetap boleh masuk lewat wajah** (penguncian melindungi dari penebak tanggal lahir; wajah adalah bukti lebih kuat). Bisa diubah bila tidak disetujui.
 7. Antrean suara saat koneksi putus: **kirim ulang otomatis di memori** (idempotency key sama) sampai token kedaluwarsa — tidak disimpan ke penyimpanan tablet demi kerahasiaan pilihan. (Antrean IndexedDB penuh belum dibuat; keputusan §13 no. 3.)
 8. Pemilihan otomatis **ditutup oleh scheduler** saat `closes_at` lewat (`election:auto-close` tiap menit).
-9. Rate limit hasil publik dibuat longgar (1.200/menit per IP) karena banyak penonton berbagi IP wifi sekolah; hasil sudah di-cache.
+9. **Model wajah ikut di-commit ke repo publik** (permintaan pemilik 2026-11-10; sebelumnya diputuskan tidak). Hanya 3 berkas terpilih (±20 MB); lisensi InsightFace non-komersial dicatat di `public/models/NOTICE.md`. CLAUDE.md §5.11 diperbarui.
+10. Rate limit hasil publik dibuat longgar (1.200/menit per IP) karena banyak penonton berbagi IP wifi sekolah; hasil sudah di-cache.
 
 ## Uji yang sudah dijalankan
 

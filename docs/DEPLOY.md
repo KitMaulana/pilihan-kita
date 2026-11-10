@@ -25,7 +25,7 @@ Tidak ada Node.js/Python di server.
    ```bash
    cd ~/domains/pemilihan.contoh.id && mv public_html public_html.bak && ln -s app/public public_html
    ```
-6. **Model wajah**: unggah manual 3 berkas ke `app/public/models/` (lihat `public/models/README.md`), lalu cek checksum:
+6. **Model wajah**: sudah ikut repo (`git clone`/`git pull`). Cukup verifikasi checksum terhadap `public/models/README.md`:
    ```bash
    sha256sum app/public/models/*
    ```

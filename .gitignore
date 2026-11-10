@@ -22,11 +22,13 @@ yarn-error.log
 /.zed
 
 # ── PILIHAN-KITA ─────────────────────────────────────────────
-# Model wajah: diunggah MANUAL ke server (lisensi & ukuran) — jangan commit.
-/public/models/*
-!/public/models/README.md
+# Model wajah: HANYA 3 berkas di public/models/ yang ikut di-commit (keputusan pemilik 2026-11-10,
+# lihat public/models/NOTICE.md untuk lisensi). Model/zip lain di mana pun tetap diabaikan.
 *.onnx
 *.task
+!/public/models/det_500m.onnx
+!/public/models/w600k_mbf.onnx
+!/public/models/face_landmarker.task
 # Data pemilih / biometrik / hasil uji — jangan pernah commit.
 *.csv
 !/docs/contoh/*.csv

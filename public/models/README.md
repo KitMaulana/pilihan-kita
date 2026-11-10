@@ -1,6 +1,8 @@
-# Model wajah — unggah MANUAL (tidak masuk Git)
+# Model wajah
 
-Folder ini di-`.gitignore`. Model tidak di-commit karena ukuran dan **lisensi**.
+Ketiga model **ikut di-commit** (keputusan pemilik 2026-11-10) sehingga `git pull` di server sudah membawanya.
+Baca **[NOTICE.md](NOTICE.md)** untuk lisensi (InsightFace: hanya non-komersial). Bagian "Langkah" di bawah hanya
+perlu bila berkas hilang/rusak atau model diganti.
 
 | Berkas | Sumber resmi | Perkiraan ukuran | Fungsi |
 |---|---|---|---|
