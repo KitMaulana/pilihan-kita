@@ -6,7 +6,7 @@
  *  - Halaman (navigasi)                             : network-first, fallback ke cache.
  * Naikkan VERSION bila model diganti agar cache lama dibuang.
  */
-const VERSION = 'v1';
+const VERSION = 'v2'; // v2: buang salinan .mjs bertipe salah (text/plain) yang sempat ter-cache
 const STATIC_CACHE = `pk-static-${VERSION}`;
 const PAGE_CACHE = `pk-pages-${VERSION}`;
 
@@ -30,10 +30,13 @@ self.addEventListener('fetch', (event) => {
     if (url.pathname.startsWith('/models/') || url.pathname.startsWith('/wasm/') || url.pathname.startsWith('/build/')) {
         event.respondWith(
             caches.open(STATIC_CACHE).then(async (cache) => {
+                const needsJs = /\.m?js$/.test(url.pathname);
+                const isJs = (r) => /javascript/i.test(r.headers.get('content-type') || '');
                 const hit = await cache.match(req, { ignoreSearch: true });
-                if (hit) return hit;
+                if (hit && (!needsJs || isJs(hit))) return hit;
                 const res = await fetch(req);
-                if (res.ok && res.status === 200) cache.put(req, res.clone());
+                // Modul JS bertipe salah tidak disimpan (peramban menolak import() modul bukan-JavaScript).
+                if (res.ok && res.status === 200 && (!needsJs || isJs(res))) cache.put(req, res.clone());
                 return res;
             }),
         );
