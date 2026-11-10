@@ -1,9 +1,9 @@
 # Tipe MIME untuk modul ONNX Runtime/MediaPipe. Modul ES (.mjs) WAJIB bertipe JavaScript,
 # kalau tidak, peramban menolak import() ("Failed to fetch dynamically imported module").
-<IfModule mod_mime.c>
-    AddType text/javascript .mjs .js
-    AddType application/wasm .wasm
-</IfModule>
+# Tanpa pembungkus <IfModule>: webserver hosting (LiteSpeed) bisa melewati blok mod_mime.
+AddType text/javascript .mjs
+AddType application/javascript .js
+AddType application/wasm .wasm
 
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
