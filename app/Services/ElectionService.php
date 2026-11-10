@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 class ElectionService
 {
     public const TRANSITIONS = [
-        Election::DRAFT => [Election::OPEN],
+        Election::DRAFT => [Election::OPEN, Election::CLOSED], // draf boleh langsung ditutup (dibatalkan)
         Election::OPEN => [Election::CLOSED],
         Election::CLOSED => [Election::PUBLISHED, Election::OPEN],
         Election::PUBLISHED => [],

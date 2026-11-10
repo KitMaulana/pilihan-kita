@@ -1,7 +1,7 @@
 # PROGRESS — E-Voting OSIS "One Face One Vote"
 
 **Fase aktif: 3 (gerbang uji akurasi wajah) — menunggu model + tablet nyata + sukarelawan.**
-Terakhir diperbarui: 2026-11-09.
+Terakhir diperbarui: 2026-11-10.
 
 ## Ringkasan status per fase
 
@@ -33,9 +33,16 @@ Terakhir diperbarui: 2026-11-09.
 9. **Model wajah ikut di-commit ke repo publik** (permintaan pemilik 2026-11-10; sebelumnya diputuskan tidak). Hanya 3 berkas terpilih (±20 MB); lisensi InsightFace non-komersial dicatat di `public/models/NOTICE.md`. CLAUDE.md §5.11 diperbarui.
 10. Rate limit hasil publik dibuat longgar (1.200/menit per IP) karena banyak penonton berbagi IP wifi sekolah; hasil sudah di-cache.
 
+## Revisi pemilik 2026-11-10
+
+1. **Jadwal & Status:** transisi baru **Draf → Ditutup** (tutup/batalkan draf meski belum ada kandidat/pemilih). Panel status berupa stepper; tombol Buka / Tutup / Publikasikan selalu tampil (yang tidak berlaku dinonaktifkan + alasan). Pemilihan baru boleh dibuat bila yang sekarang ditutup **tanpa suara** (`can_create_new`, `votes_count` di `ElectionResource`).
+2. **Pemilih:** input satuan `POST /panitia/voters` (`VoterStoreRequest` + `VoterImportService::createOne`, aturan sama dengan impor: NISN 10 digit, NIP 18 digit/kosong, guru tanpa NIP wajib kode bila nama+tgl lahir ganda). Tombol "Simpan & tambah lagi" mempertahankan jenis & kelas. Saat mode simulasi aktif, pemilih baru ikut ditandai simulasi.
+3. **Bug kandidat:** penyebab = nomor urut berawalan nol (`01`) ditolak `integer` + pesan Inggris (tidak ada berkas terjemahan). Perbaikan: normalisasi nomor di `CandidateRequest`, input nomor hanya angka + validasi di klien, pratinjau foto & cek ukuran ≤ 2 MB sebelum kirim, `lang/id/validation.php`. **Foto kandidat kini dilayani lewat `GET /api/v1/public/candidates/{id}/photo`** (tidak butuh symlink `public/storage` maupun APP_URL yang benar di Hostinger).
+4. **Uji Wajah:** tab "Uji cepat" (unggah foto acuan → "Mulai scan wajah" → hasil Cocok / Ambigu / Tidak cocok memakai ambang & margin pengaturan, skor per foto, waktu proses, liveness opsional, simpan ke data akurasi) + tab "Uji akurasi (lanjutan)" (alat lama).
+
 ## Uji yang sudah dijalankan
 
-- `php artisan test` → **66 lulus** (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
+- `php artisan test` → **72 lulus** (2026-11-10) (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
 - `npm run build` sukses (build 788 KB; runtime WASM terpisah di `public/wasm/`).
 - Uji HTTP end-to-end (login+CSRF → daftar tablet → buka → cadangan → konfirmasi → suara → replay → tolak memilih ulang).
 - Chrome headless + CDP: 360 px (beranda, hasil, resi, login, dasbor) tanpa scroll horizontal & tanpa error konsol; alur kiosk lewat klik sampai resi.

@@ -30,8 +30,9 @@ class ElectionController extends Controller
         $request->validate(['name' => ['required', 'string', 'max:150']]);
 
         $current = Election::current();
-        if ($current && ! $current->is_simulation && $current->status !== Election::PUBLISHED) {
-            throw ValidationException::withMessages(['name' => 'Masih ada pemilihan yang belum dipublikasikan.']);
+        $closedEmpty = $current && $current->status === Election::CLOSED && ! $current->votes()->exists();
+        if ($current && ! $current->is_simulation && $current->status !== Election::PUBLISHED && ! $closedEmpty) {
+            throw ValidationException::withMessages(['name' => 'Masih ada pemilihan yang belum ditutup/dipublikasikan.']);
         }
 
         $election = Election::create([

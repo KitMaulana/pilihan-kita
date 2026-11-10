@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ReceiptCheckRequest;
+use App\Models\Candidate;
 use App\Models\Election;
 use App\Models\Vote;
 use App\Services\ResultService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PublicController extends Controller
 {
@@ -20,6 +23,20 @@ class PublicController extends Controller
 
         return response()->json($results->snapshot($election))
             ->header('Cache-Control', 'public, max-age='.ResultService::TTL);
+    }
+
+    /**
+     * Foto kandidat dilayani lewat PHP agar tidak bergantung pada symlink `public/storage`
+     * (sering gagal dibuat di hosting bersama) maupun APP_URL. Foto kandidat bersifat publik.
+     */
+    public function candidatePhoto(Candidate $candidate): StreamedResponse
+    {
+        $disk = Storage::disk('public');
+        abort_unless($candidate->photo_path && $disk->exists($candidate->photo_path), 404);
+
+        return $disk->response($candidate->photo_path, null, [
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
     }
 
     /**

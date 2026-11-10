@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class Candidate extends Model
 {
@@ -27,6 +26,10 @@ class Candidate extends Model
 
     public function photoUrl(): ?string
     {
-        return $this->photo_path ? Storage::disk('public')->url($this->photo_path) : null;
+        // Jalur relatif + versi (berubah saat foto diganti): aman dari APP_URL yang salah,
+        // tidak butuh symlink public/storage, dan tidak tertahan cache lama.
+        return $this->photo_path
+            ? '/api/v1/public/candidates/'.$this->id.'/photo?v='.substr(md5($this->photo_path), 0, 10)
+            : null;
     }
 }

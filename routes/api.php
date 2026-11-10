@@ -27,6 +27,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('public')->group(function () {
         Route::get('results', [PublicController::class, 'results'])->middleware('throttle:public');
         Route::post('receipt', [PublicController::class, 'receipt'])->middleware('throttle:receipt');
+        Route::get('candidates/{candidate}/photo', [PublicController::class, 'candidatePhoto'])->middleware('throttle:public');
     });
 
     // ── Kiosk (tablet): device token + jam voting + batas laju ───────────────
@@ -51,6 +52,7 @@ Route::prefix('v1')->group(function () {
         Route::get('voters/template/{type}', [VoterController::class, 'template']);
         Route::post('voters/import/preview', [VoterController::class, 'preview']);
         Route::post('voters/import/commit', [VoterController::class, 'commit']);
+        Route::post('voters', [VoterController::class, 'store']);
         Route::patch('voters/{voter}', [VoterController::class, 'update']);
         Route::post('voters/{voter}/unlock', [VoterController::class, 'unlock']);
 

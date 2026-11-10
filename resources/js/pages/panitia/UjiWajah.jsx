@@ -7,7 +7,9 @@ import { analyzeFrame, createLivenessSession, loadLiveness } from '../../feature
 import { measureQuality } from '../../features/face/quality';
 import { DETECTION } from '../../features/face/config';
 import { farOneToN, histogram, pairScores, rates, recommend, simulateIdentification } from '../../features/face/accuracy';
-import { Alert, Badge, Field, Spinner, toast } from '../../components/ui';
+import { Alert, Badge, Field, toast } from '../../components/ui';
+import { useElection } from './PanitiaLayout';
+import UjiWajahCepat from './UjiWajahCepat';
 
 const pct = (v) => `${(v * 100).toFixed(2)}%`;
 
@@ -48,14 +50,13 @@ function Histogram({ genuine, impostor }) {
     );
 }
 
-export default function UjiWajah() {
+/** Tab lanjutan: diagnostik kamera, pengumpulan sampel sukarelawan, laporan FAR/FRR (gerbang Fase 3). */
+function AdvancedTest({ engine, samples, setSamples }) {
     const qc = useQueryClient();
-    const [engine, setEngine] = useState({ state: 'loading', progress: 0, error: null });
     const [cameraOn, setCameraOn] = useState(false);
     const { videoRef, status: camStatus, error: camError, start, stop } = useCamera({ autoStart: false });
     const [live, setLive] = useState(null);
     const [liveness, setLiveness] = useState(null);
-    const [samples, setSamples] = useState([]);
     const [label, setLabel] = useState('');
     const [condition, setCondition] = useState('normal');
     const [population, setPopulation] = useState(1800);
@@ -63,18 +64,6 @@ export default function UjiWajah() {
     const [margin, setMargin] = useState(0.08);
     const sessionRef = useRef(null);
     const benchRef = useRef([]);
-
-    useEffect(() => {
-        (async () => {
-            try {
-                await loadFaceEngine((p) => setEngine((s) => ({ ...s, progress: p * 0.9 })));
-                await loadLiveness();
-                setEngine({ state: 'ready', progress: 1, error: null });
-            } catch (e) {
-                setEngine({ state: 'error', progress: 0, error: e.message });
-            }
-        })();
-    }, []);
 
     // Loop pratinjau: landmark (liveness) tiap frame, deteksi+embedding tiap ~700 ms.
     useEffect(() => {
@@ -191,15 +180,10 @@ export default function UjiWajah() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">Uji Wajah &amp; Akurasi (Fase 3 — gerbang)</h1>
-                <p className="text-sm text-slate-600">
-                    Kumpulkan ≥ 3 sampel per sukarelawan dari 20–30 orang dalam berbagai kondisi. Data uji hanya ada di peramban ini (ekspor JSON untuk disimpan; hapus setelah selesai).
-                </p>
-            </div>
-
-            {engine.state === 'loading' && <Spinner label={`Memuat model… ${Math.round(engine.progress * 100)}%`} />}
-            {engine.error && <Alert type="danger" title="Model gagal dimuat">{engine.error}</Alert>}
+            <p className="text-sm text-slate-600">
+                Untuk gerbang Fase 3: kumpulkan ≥ 3 sampel per sukarelawan dari 20–30 orang dalam berbagai kondisi. Data uji hanya ada di peramban ini (ekspor JSON untuk disimpan; hapus setelah
+                selesai). Hasil dari tab <b>Uji cepat</b> juga bisa disimpan ke sini.
+            </p>
 
             <section className="card grid gap-6 lg:grid-cols-2">
                 <div>
@@ -368,6 +352,101 @@ export default function UjiWajah() {
                         </table>
                     </div>
                 </section>
+            )}
+        </div>
+    );
+}
+
+const TABS = [
+    ['quick', 'Uji cepat', 'Unggah foto → scan wajah → lihat cocok atau tidak'],
+    ['advanced', 'Uji akurasi (lanjutan)', 'Sampel sukarelawan, FAR/FRR, rekomendasi ambang'],
+];
+
+export default function UjiWajah() {
+    const { data: election } = useElection();
+    const [tab, setTab] = useState('quick');
+    const [engine, setEngine] = useState({ state: 'loading', progress: 0, label: 'Memuat model', error: null });
+    const [livenessReady, setLivenessReady] = useState(false);
+    const [samples, setSamples] = useState([]);
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                await loadFaceEngine((p, label) => alive && setEngine((s) => ({ ...s, progress: p, label: label || s.label })));
+                if (alive) setEngine({ state: 'ready', progress: 1, label: 'Siap', error: null });
+            } catch (e) {
+                if (alive) setEngine({ state: 'error', progress: 0, label: '', error: e.message });
+                return;
+            }
+            // Liveness opsional: bila gagal dimuat, uji cepat tetap jalan tanpa liveness.
+            try {
+                await loadLiveness();
+                if (alive) setLivenessReady(true);
+            } catch {
+                if (alive) setLivenessReady(false);
+            }
+        })();
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    const threshold = Number(election?.settings?.match_threshold ?? 0.5);
+    const margin = Number(election?.settings?.match_margin ?? 0.08);
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold text-slate-900">Uji Wajah</h1>
+                <p className="text-sm text-slate-600">Coba pengenalan wajah sebelum hari-H. Semua pemrosesan terjadi di peramban ini; foto dan wajah tidak dikirim ke server.</p>
+            </div>
+
+            {engine.state === 'loading' && (
+                <div className="card space-y-2" role="status">
+                    <div className="flex justify-between text-sm">
+                        <span>{engine.label}… (unduhan pertama ±20 MB, berikutnya dari cache)</span>
+                        <span className="tabular-nums">{Math.round(engine.progress * 100)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100">
+                        <div className="h-2 rounded-full bg-brand-600 transition-all" style={{ width: `${Math.round(engine.progress * 100)}%` }} />
+                    </div>
+                </div>
+            )}
+            {engine.error && (
+                <Alert type="danger" title="Model wajah gagal dimuat">
+                    {engine.error}. Pastikan berkas di <code>public/models/</code> tersedia lalu muat ulang halaman.
+                </Alert>
+            )}
+
+            <div role="tablist" aria-label="Mode uji" className="grid gap-2 sm:grid-cols-2">
+                {TABS.map(([key, label, desc]) => (
+                    <button
+                        key={key}
+                        role="tab"
+                        aria-selected={tab === key}
+                        onClick={() => setTab(key)}
+                        className={`rounded-2xl border-2 p-4 text-left transition ${tab === key ? 'border-brand-700 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                    >
+                        <span className={`block font-bold ${tab === key ? 'text-brand-800' : 'text-slate-800'}`}>
+                            {label}
+                            {key === 'advanced' && samples.length > 0 && <span className="ml-2 text-sm font-normal text-slate-500">({samples.length} sampel)</span>}
+                        </span>
+                        <span className="text-sm text-slate-600">{desc}</span>
+                    </button>
+                ))}
+            </div>
+
+            {tab === 'quick' ? (
+                <UjiWajahCepat
+                    engine={engine}
+                    livenessReady={livenessReady}
+                    threshold={threshold}
+                    margin={margin}
+                    onAddSamples={(list) => setSamples((s) => [...s, ...list])}
+                />
+            ) : (
+                <AdvancedTest engine={engine} samples={samples} setSamples={setSamples} />
             )}
         </div>
     );

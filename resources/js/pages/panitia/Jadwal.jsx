@@ -125,8 +125,40 @@ function SettingsForm({ election }) {
     );
 }
 
+const STEPS = ['draft', 'open', 'closed', 'published'];
+
+/** Alur status: Draf → Dibuka → Ditutup → Dipublikasikan. */
+function StatusStepper({ status }) {
+    const current = status ? STEPS.indexOf(status) : -1;
+    return (
+        <ol className="grid grid-cols-4 gap-1" aria-label="Tahapan pemilihan">
+            {STEPS.map((s, i) => {
+                const done = i < current;
+                const active = i === current;
+                return (
+                    <li key={s} className="flex flex-col items-center gap-1 text-center" aria-current={active ? 'step' : undefined}>
+                        <div className="flex w-full items-center">
+                            <span className={`h-1 flex-1 rounded ${i === 0 ? 'invisible' : i <= current ? 'bg-brand-600' : 'bg-slate-200'}`} />
+                            <span
+                                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                                    active ? 'bg-brand-700 text-white ring-4 ring-brand-100' : done ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-500'
+                                }`}
+                            >
+                                {done ? '✓' : i + 1}
+                            </span>
+                            <span className={`h-1 flex-1 rounded ${i === STEPS.length - 1 ? 'invisible' : i < current ? 'bg-brand-600' : 'bg-slate-200'}`} />
+                        </div>
+                        <span className={`text-xs sm:text-sm ${active ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{STATUS_LABEL[s]}</span>
+                    </li>
+                );
+            })}
+        </ol>
+    );
+}
+
 function StatusPanel({ election }) {
     const qc = useQueryClient();
+    const { isAdmin } = useAuth();
     const [target, setTarget] = useState(null);
     const [error, setError] = useState(null);
     const verify = useQuery({ queryKey: ['verify'], queryFn: () => api.get('/panitia/election/verify').then((r) => r.data), enabled: false });
@@ -161,25 +193,63 @@ function StatusPanel({ election }) {
     }
 
     const allowed = election.allowed_transitions || [];
+    const reopen = election.status === 'closed';
+    const actions = [
+        {
+            to: 'open',
+            label: reopen ? 'Buka kembali' : TRANSITION.open.label,
+            cls: 'btn-primary',
+            disabled: !allowed.includes('open') || (reopen && !isAdmin),
+            why: reopen && !isAdmin ? 'Hanya admin yang dapat membuka kembali.' : election.status === 'open' ? 'Pemilihan sedang dibuka.' : 'Hasil sudah dipublikasikan.',
+        },
+        {
+            to: 'closed',
+            label: TRANSITION.closed.label,
+            cls: 'btn-danger',
+            disabled: !allowed.includes('closed'),
+            why: election.status === 'published' ? 'Hasil sudah dipublikasikan.' : 'Pemilihan sudah ditutup.',
+        },
+        {
+            to: 'published',
+            label: TRANSITION.published.label,
+            cls: 'btn-primary',
+            disabled: !allowed.includes('published'),
+            why: election.status === 'published' ? 'Hasil sudah dipublikasikan.' : 'Tutup pemilihan terlebih dahulu.',
+        },
+    ];
 
     return (
         <section className="card space-y-4">
             <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-bold">Status pemilihan</h2>
-                <Badge color={election.status === 'open' ? 'green' : 'gray'}>{STATUS_LABEL[election.status]}</Badge>
+                <Badge color={election.status === 'open' ? 'green' : election.status === 'closed' ? 'red' : 'gray'}>{STATUS_LABEL[election.status]}</Badge>
                 {election.is_simulation && <Badge color="yellow">SIMULASI</Badge>}
+                <span className="text-sm text-slate-500">· {election.votes_count ?? 0} suara masuk</span>
             </div>
+
+            <StatusStepper status={election.status} />
+
             {election.closed_reason && election.status === 'open' && <Alert type="warning">{election.closed_reason}</Alert>}
-            <div className="flex flex-wrap gap-2">
-                {allowed.map((to) => (
-                    <button key={to} className={to === 'closed' ? 'btn-danger' : 'btn-primary'} onClick={() => setTarget(to)}>
-                        {to === 'open' && election.status === 'closed' ? 'Buka kembali (admin)' : TRANSITION[to].label}
-                    </button>
+            {election.status === 'draft' && (
+                <p className="text-sm text-slate-600">
+                    Pemilihan masih draf. Anda bisa <b>membukanya</b> (perlu minimal satu kandidat aktif) atau <b>menutupnya</b> langsung — mis. untuk membatalkan draf, meskipun belum ada data apa pun.
+                </p>
+            )}
+            <div className="grid gap-2 sm:grid-cols-3">
+                {actions.map((a) => (
+                    <div key={a.to}>
+                        <button className={`${a.cls} w-full`} disabled={a.disabled} onClick={() => setTarget(a.to)} title={a.disabled ? a.why : undefined}>
+                            {a.label}
+                        </button>
+                        {a.disabled && <p className="mt-1 text-xs text-slate-500">{a.why}</p>}
+                    </div>
                 ))}
-                <button className="btn-secondary" onClick={() => verify.refetch()}>
+            </div>
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                <button className="btn-secondary btn-sm" onClick={() => verify.refetch()}>
                     Verifikasi ledger
                 </button>
-                <button className="btn-secondary" onClick={printReport}>
+                <button className="btn-secondary btn-sm" onClick={printReport}>
                     Cetak laporan
                 </button>
             </div>
@@ -205,8 +275,12 @@ function StatusPanel({ election }) {
                         setError(null);
                     }}
                     onConfirm={(v) => transition.mutate(v)}
-                    title={TRANSITION[target].label}
-                    description={TRANSITION[target].desc}
+                    title={target === 'open' && reopen ? 'Buka kembali pemilihan' : TRANSITION[target].label}
+                    description={
+                        target === 'closed' && election.status === 'draft'
+                            ? 'Pemilihan draf ini akan ditutup tanpa pemungutan suara. Setelah ditutup, Anda dapat membuat pemilihan baru (atau admin dapat membukanya kembali).'
+                            : TRANSITION[target].desc
+                    }
                     word={TRANSITION[target].word}
                     danger={target === 'closed'}
                     busy={transition.isPending}
@@ -293,7 +367,14 @@ export default function Jadwal() {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold text-slate-900">Jadwal &amp; Status</h1>
-            {!election || (election.status === 'published' && !election.is_simulation) ? <CreateElection /> : null}
+            {!election && (
+                <section className="card space-y-3">
+                    <h2 className="font-bold">Status pemilihan</h2>
+                    <StatusStepper status={null} />
+                    <p className="text-sm text-slate-600">Belum ada pemilihan. Buat pemilihan di bawah ini; setelah itu tombol Buka / Tutup / Publikasikan tersedia di sini.</p>
+                </section>
+            )}
+            {!election || (election.can_create_new && !election.is_simulation) ? <CreateElection /> : null}
             {election && (
                 <>
                     <StatusPanel election={election} />

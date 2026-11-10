@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -227,6 +228,53 @@ class VoterImportService
         });
 
         return ['created' => $created, 'updated' => $updated];
+    }
+
+    /**
+     * Menambah SATU pemilih (input manual panitia). Aturan keunikan sama dengan impor:
+     * NISN/NIP unik per jenis; guru tanpa NIP → nama + tanggal lahir (+ kode) harus unik.
+     *
+     * @param  array{type: string, identifier?: ?string, name: string, class_name?: ?string, birth_date: string, distinguisher?: ?string}  $data
+     */
+    public function createOne(array $data, bool $simulation = false): Voter
+    {
+        $type = $data['type'];
+        $identifier = ($data['identifier'] ?? null) ?: null;
+        $distinguisher = ($data['distinguisher'] ?? null) ?: null;
+        $label = $type === Voter::STUDENT ? 'NISN' : 'NIP';
+
+        if ($identifier) {
+            $existing = Voter::where('type', $type)->where('identifier', $identifier)->first();
+            if ($existing) {
+                throw ValidationException::withMessages([
+                    'identifier' => "{$label} {$identifier} sudah terdaftar atas nama {$existing->name}".($existing->is_simulation ? ' (data simulasi)' : '').'.',
+                ]);
+            }
+        } else {
+            $twins = Voter::where('type', $type)->whereNull('identifier')
+                ->where('name', $data['name'])->whereDate('birth_date', $data['birth_date'])->get();
+            if ($twins->isNotEmpty()) {
+                $clash = ! $distinguisher
+                    || $twins->contains(fn ($v) => ! $v->distinguisher)
+                    || $twins->contains(fn ($v) => mb_strtolower((string) $v->distinguisher) === mb_strtolower($distinguisher));
+                if ($clash) {
+                    throw ValidationException::withMessages([
+                        'distinguisher' => 'Sudah ada guru tanpa NIP dengan nama dan tanggal lahir yang sama. Isi "kode guru" yang berbeda untuk keduanya (ubah juga data yang lama).',
+                    ]);
+                }
+            }
+        }
+
+        return Voter::create([
+            'type' => $type,
+            'identifier' => $identifier,
+            'name' => $data['name'],
+            'class_name' => ($data['class_name'] ?? null) ?: null,
+            'birth_date' => $data['birth_date'],
+            'distinguisher' => $type === Voter::TEACHER ? $distinguisher : null,
+            'is_active' => true,
+            'is_simulation' => $simulation,
+        ]);
     }
 
     /** Terima YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY. Kembalikan YYYY-MM-DD atau null. */

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../../lib/api';
 import { number } from '../../lib/format';
@@ -238,11 +238,162 @@ function EditVoter({ voter, onClose }) {
     );
 }
 
+const EMPTY_VOTER = { type: 'student', identifier: '', name: '', class_name: '', birth_date: '', distinguisher: '' };
+
+/** Input pemilih satu per satu. "Simpan & tambah lagi" mempertahankan jenis & kelas agar input per kelas cepat. */
+function AddVoter({ classes, onClose, onSaved }) {
+    const [form, setForm] = useState(EMPTY_VOTER);
+    const [errors, setErrors] = useState({});
+    const [error, setError] = useState(null);
+    const [count, setCount] = useState(0);
+    const identRef = useRef(null);
+    const student = form.type === 'student';
+
+    const set = (k) => (e) => {
+        setForm({ ...form, [k]: e.target.value });
+        setErrors((x) => ({ ...x, [k]: null }));
+    };
+
+    function validate() {
+        const e = {};
+        const id = form.identifier.replace(/[\s.-]/g, '');
+        if (student && !/^\d{10}$/.test(id)) e.identifier = id ? `NISN harus 10 digit angka (sekarang ${id.length}).` : 'NISN wajib diisi.';
+        if (!student && id && !/^\d{18}$/.test(id)) e.identifier = `NIP harus 18 digit angka (sekarang ${id.length}), atau kosongkan.`;
+        if (!form.name.trim()) e.name = 'Nama wajib diisi.';
+        if (student && !form.class_name.trim()) e.class_name = 'Kelas wajib diisi.';
+        if (!form.birth_date) e.birth_date = 'Tanggal lahir wajib diisi.';
+        setErrors(e);
+        return Object.keys(e).length === 0;
+    }
+
+    const save = useMutation({
+        mutationFn: () => api.post('/panitia/voters', { ...form, class_name: student ? form.class_name : null, distinguisher: student ? null : form.distinguisher || null }),
+        onError: (e) => {
+            const errs = e.response?.data?.errors;
+            if (errs) setErrors(Object.fromEntries(Object.entries(errs).map(([k, v]) => [k, v[0]])));
+            setError(errorMessage(e));
+        },
+    });
+
+    async function submit(again) {
+        setError(null);
+        if (!validate()) return;
+        try {
+            const { data } = await save.mutateAsync();
+            toast.success(data.message || 'Pemilih ditambahkan.');
+            onSaved();
+            if (again) {
+                setCount((c) => c + 1);
+                setForm({ ...EMPTY_VOTER, type: form.type, class_name: form.class_name });
+                setErrors({});
+                identRef.current?.focus();
+            } else {
+                onClose();
+            }
+        } catch {
+            /* ditangani onError */
+        }
+    }
+
+    return (
+        <Modal
+            open
+            onClose={onClose}
+            title="Tambah pemilih"
+            footer={
+                <>
+                    <button className="btn-secondary" onClick={onClose}>
+                        Tutup
+                    </button>
+                    <button className="btn-secondary" onClick={() => submit(true)} disabled={save.isPending}>
+                        Simpan &amp; tambah lagi
+                    </button>
+                    <button className="btn-primary" onClick={() => submit(false)} disabled={save.isPending}>
+                        {save.isPending ? 'Menyimpan…' : 'Simpan'}
+                    </button>
+                </>
+            }
+        >
+            <form
+                className="grid gap-4"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    submit(true);
+                }}
+            >
+                <div role="radiogroup" aria-label="Jenis pemilih" className="grid grid-cols-2 gap-2">
+                    {[
+                        ['student', 'Siswa'],
+                        ['teacher', 'Guru / staf'],
+                    ].map(([v, l]) => (
+                        <button
+                            key={v}
+                            type="button"
+                            role="radio"
+                            aria-checked={form.type === v}
+                            onClick={() => {
+                                setForm({ ...form, type: v });
+                                setErrors({});
+                            }}
+                            className={`min-h-12 rounded-xl border-2 px-3 font-semibold transition ${form.type === v ? 'border-brand-700 bg-brand-50 text-brand-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                        >
+                            {l}
+                        </button>
+                    ))}
+                </div>
+
+                <Field label={student ? 'NISN (10 digit)' : 'NIP (18 digit, kosongkan bila tidak punya)'} error={errors.identifier}>
+                    {(id) => (
+                        <input
+                            id={id}
+                            ref={identRef}
+                            className="input font-mono"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            value={form.identifier}
+                            onChange={set('identifier')}
+                            placeholder={student ? '0071234567' : '198001012005011001'}
+                        />
+                    )}
+                </Field>
+                <Field label="Nama lengkap" error={errors.name}>
+                    {(id) => <input id={id} className="input" autoComplete="off" value={form.name} onChange={set('name')} />}
+                </Field>
+                {student ? (
+                    <Field label="Kelas" error={errors.class_name} hint="Ketik atau pilih kelas yang sudah ada.">
+                        {(id) => (
+                            <>
+                                <input id={id} className="input" list="add-voter-classes" autoComplete="off" value={form.class_name} onChange={set('class_name')} placeholder="XI IPA 1" />
+                                <datalist id="add-voter-classes">
+                                    {classes?.map((c) => (
+                                        <option key={c} value={c} />
+                                    ))}
+                                </datalist>
+                            </>
+                        )}
+                    </Field>
+                ) : (
+                    <Field label="Kode guru (opsional)" error={errors.distinguisher} hint="Wajib bila ada guru tanpa NIP dengan nama & tanggal lahir yang sama.">
+                        {(id) => <input id={id} className="input" value={form.distinguisher} onChange={set('distinguisher')} placeholder="G-21" />}
+                    </Field>
+                )}
+                <Field label="Tanggal lahir" error={errors.birth_date} hint="Dipakai untuk jalur cadangan (NISN/NIP + tanggal lahir).">
+                    {(id) => <input id={id} type="date" className="input" max={new Date().toISOString().slice(0, 10)} value={form.birth_date} onChange={set('birth_date')} />}
+                </Field>
+                <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />
+                {error && <Alert type="danger">{error}</Alert>}
+                {count > 0 && <p className="text-sm text-emerald-700">{count} pemilih sudah ditambahkan di sesi ini.</p>}
+            </form>
+        </Modal>
+    );
+}
+
 export default function Pemilih() {
     const qc = useQueryClient();
     const [filters, setFilters] = useState({ q: '', type: '', class_name: '', face: '', status: '', page: 1 });
     const [showImport, setShowImport] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [adding, setAdding] = useState(false);
 
     const classes = useQuery({ queryKey: ['voter-classes'], queryFn: () => api.get('/panitia/voters/classes').then((r) => r.data.data) });
     const list = useQuery({
@@ -266,10 +417,26 @@ export default function Pemilih() {
         <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-2xl font-bold text-slate-900">Pemilih</h1>
-                <button className="btn-primary" onClick={() => setShowImport(!showImport)}>
-                    {showImport ? 'Tutup impor' : 'Impor CSV'}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                    <button className="btn-primary" onClick={() => setAdding(true)}>
+                        + Tambah pemilih
+                    </button>
+                    <button className="btn-secondary" onClick={() => setShowImport(!showImport)}>
+                        {showImport ? 'Tutup impor' : 'Impor CSV (massal)'}
+                    </button>
+                </div>
             </div>
+
+            {adding && (
+                <AddVoter
+                    classes={classes.data}
+                    onClose={() => setAdding(false)}
+                    onSaved={() => {
+                        qc.invalidateQueries({ queryKey: ['voters'] });
+                        qc.invalidateQueries({ queryKey: ['voter-classes'] });
+                    }}
+                />
+            )}
 
             {showImport && (
                 <section className="card">

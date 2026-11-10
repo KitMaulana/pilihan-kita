@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panitia;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\VoterImportPreviewRequest;
+use App\Http\Requests\VoterStoreRequest;
 use App\Http\Requests\VoterUpdateRequest;
 use App\Http\Resources\VoterResource;
 use App\Models\Election;
@@ -89,6 +90,18 @@ class VoterController extends Controller
         $audit->log('voters.imported', null, $result);
 
         return response()->json($result + ['message' => "Impor selesai: {$result['created']} baru, {$result['updated']} diperbarui."]);
+    }
+
+    /** Tambah satu pemilih (input manual). Ikut mode simulasi bila pemilihan aktif adalah simulasi. */
+    public function store(VoterStoreRequest $request, VoterImportService $import, AuditService $audit): JsonResponse
+    {
+        $simulation = (bool) Election::current()?->is_simulation;
+        $voter = $import->createOne($request->validated(), $simulation);
+        $audit->log('voter.created', $voter, ['name' => $voter->name, 'type' => $voter->type, 'simulation' => $simulation]);
+
+        return (new VoterResource($voter->load('faceTemplate')))
+            ->additional(['message' => "Pemilih {$voter->name} ditambahkan".($simulation ? ' (simulasi).' : '.')])
+            ->response()->setStatusCode(201);
     }
 
     public function update(VoterUpdateRequest $request, Voter $voter, AuditService $audit, FaceMatchService $matcher): VoterResource

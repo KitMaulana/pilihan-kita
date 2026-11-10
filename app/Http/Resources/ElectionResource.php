@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Election;
 use App\Services\ElectionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -25,6 +26,12 @@ class ElectionResource extends JsonResource
             'ledger_count' => $this->ledger_count,
             'ledger_head_hash' => $this->ledger_head_hash,
             'allowed_transitions' => ElectionService::TRANSITIONS[$this->status] ?? [],
+            'votes_count' => $votes = $this->votes()->count(),
+            // Pemilihan baru boleh dibuat bila yang sekarang simulasi, sudah dipublikasikan,
+            // atau ditutup tanpa satu suara pun (mis. draf yang dibatalkan).
+            'can_create_new' => $this->is_simulation
+                || $this->status === Election::PUBLISHED
+                || ($this->status === Election::CLOSED && $votes === 0),
         ];
     }
 }

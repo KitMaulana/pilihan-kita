@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../../lib/api';
 import { Alert, EmptyState, Field, Modal, Spinner, toast } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
 
-function CandidateForm({ candidate, onClose }) {
+const MAX_PHOTO = 2 * 1024 * 1024;
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function CandidateForm({ candidate, nextNumber, onClose }) {
     const qc = useQueryClient();
     const [form, setForm] = useState({
-        number: candidate?.number ?? '',
+        number: String(candidate?.number ?? nextNumber ?? ''),
         name: candidate?.name ?? '',
         class_name: candidate?.class_name ?? '',
         vision: candidate?.vision ?? '',
@@ -15,13 +18,46 @@ function CandidateForm({ candidate, onClose }) {
         is_active: candidate?.is_active ?? true,
     });
     const [photo, setPhoto] = useState(null);
+    const [photoPreview, setPhotoPreview] = useState(null);
     const [removePhoto, setRemovePhoto] = useState(false);
     const [error, setError] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState({});
+
+    useEffect(() => () => photoPreview && URL.revokeObjectURL(photoPreview), [photoPreview]);
+
+    function pickPhoto(file) {
+        setFieldErrors((f) => ({ ...f, photo: null }));
+        setPhoto(null);
+        setPhotoPreview(null);
+        if (!file) return;
+        if (!PHOTO_TYPES.includes(file.type)) {
+            setFieldErrors((f) => ({ ...f, photo: 'Format foto harus JPG, PNG, atau WebP.' }));
+            return;
+        }
+        if (file.size > MAX_PHOTO) {
+            setFieldErrors((f) => ({ ...f, photo: `Ukuran foto ${(file.size / 1024 / 1024).toFixed(1)} MB — maksimal 2 MB. Kecilkan dulu fotonya.` }));
+            return;
+        }
+        setPhoto(file);
+        setPhotoPreview(URL.createObjectURL(file));
+        setRemovePhoto(false);
+    }
+
+    function validate() {
+        const errs = {};
+        const n = form.number.trim();
+        if (!n) errs.number = 'Nomor urut wajib diisi.';
+        else if (!/^\d+$/.test(n) || Number(n) < 1 || Number(n) > 99) errs.number = 'Nomor urut harus angka 1–99.';
+        if (!form.name.trim()) errs.name = 'Nama kandidat wajib diisi.';
+        setFieldErrors(errs);
+        return Object.keys(errs).length === 0;
+    }
 
     const save = useMutation({
         mutationFn: () => {
             const fd = new FormData();
-            Object.entries(form).forEach(([k, v]) => fd.append(k, typeof v === 'boolean' ? (v ? '1' : '0') : v ?? ''));
+            const payload = { ...form, number: String(Number(form.number.trim())) };
+            Object.entries(payload).forEach(([k, v]) => fd.append(k, typeof v === 'boolean' ? (v ? '1' : '0') : (v ?? '')));
             if (photo) fd.append('photo', photo);
             if (removePhoto) fd.append('remove_photo', '1');
             return candidate ? api.post(`/panitia/candidates/${candidate.id}`, fd) : api.post('/panitia/candidates', fd);
@@ -31,10 +67,20 @@ function CandidateForm({ candidate, onClose }) {
             qc.invalidateQueries({ queryKey: ['candidates'] });
             onClose();
         },
-        onError: (e) => setError(errorMessage(e)),
+        onError: (e) => {
+            const errs = e.response?.data?.errors;
+            if (errs) setFieldErrors(Object.fromEntries(Object.entries(errs).map(([k, v]) => [k, v[0]])));
+            setError(e.response?.status === 413 ? 'Ukuran unggahan terlalu besar untuk server. Gunakan foto maks. 2 MB.' : errorMessage(e));
+        },
     });
 
+    function submit() {
+        setError(null);
+        if (validate()) save.mutate();
+    }
+
     const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
+    const shownPhoto = photoPreview || (!removePhoto && candidate?.photo_url) || null;
 
     return (
         <Modal
@@ -47,28 +93,59 @@ function CandidateForm({ candidate, onClose }) {
                     <button className="btn-secondary" onClick={onClose}>
                         Batal
                     </button>
-                    <button className="btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>
+                    <button className="btn-primary" onClick={submit} disabled={save.isPending}>
                         {save.isPending ? 'Menyimpan…' : 'Simpan'}
                     </button>
                 </>
             }
         >
             <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
-                <Field label="No. urut">{(id) => <input id={id} type="number" min="1" max="99" className="input" value={form.number} onChange={set('number')} />}</Field>
-                <Field label="Nama (pasangan)">{(id) => <input id={id} className="input" value={form.name} onChange={set('name')} placeholder="Raka Pratama & Nadia Putri" />}</Field>
+                <Field label="No. urut" error={fieldErrors.number}>
+                    {(id) => (
+                        <input
+                            id={id}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={2}
+                            className="input"
+                            value={form.number}
+                            onChange={(e) => setForm({ ...form, number: e.target.value.replace(/\D/g, '') })}
+                        />
+                    )}
+                </Field>
+                <Field label="Nama (pasangan)" error={fieldErrors.name}>
+                    {(id) => <input id={id} className="input" value={form.name} onChange={set('name')} placeholder="Raka Pratama & Nadia Putri" />}
+                </Field>
             </div>
             <div className="mt-4 grid gap-4">
-                <Field label="Kelas">{(id) => <input id={id} className="input" value={form.class_name} onChange={set('class_name')} />}</Field>
-                <Field label="Foto kandidat (JPG/PNG/WebP, maks. 2 MB)">
-                    {(id) => <input id={id} type="file" accept="image/jpeg,image/png,image/webp" className="input py-2.5" onChange={(e) => setPhoto(e.target.files[0] || null)} />}
+                <Field label="Kelas" error={fieldErrors.class_name}>
+                    {(id) => <input id={id} className="input" value={form.class_name} onChange={set('class_name')} placeholder="XI IPA 1" />}
                 </Field>
-                {candidate?.photo_url && (
-                    <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={removePhoto} onChange={(e) => setRemovePhoto(e.target.checked)} /> Hapus foto saat ini
-                    </label>
-                )}
-                <Field label="Visi">{(id) => <textarea id={id} rows={3} className="input" value={form.vision} onChange={set('vision')} />}</Field>
-                <Field label="Misi (satu per baris)">{(id) => <textarea id={id} rows={5} className="input" value={form.mission} onChange={set('mission')} />}</Field>
+                <div className="grid gap-4 sm:grid-cols-[140px_1fr] sm:items-start">
+                    <div className="mx-auto flex aspect-[3/4] w-32 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 sm:w-full">
+                        {shownPhoto ? (
+                            <img src={shownPhoto} alt="Pratinjau foto kandidat" className="h-full w-full object-cover" />
+                        ) : (
+                            <span className="px-2 text-center text-xs text-slate-400">Belum ada foto</span>
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <Field label="Foto kandidat (JPG/PNG/WebP, maks. 2 MB)" error={fieldErrors.photo} hint="Opsional. Disarankan potret 3:4.">
+                            {(id) => <input id={id} type="file" accept="image/jpeg,image/png,image/webp" className="input py-2.5" onChange={(e) => pickPhoto(e.target.files[0] || null)} />}
+                        </Field>
+                        {candidate?.photo_url && !photo && (
+                            <label className="flex items-center gap-2 text-sm">
+                                <input type="checkbox" checked={removePhoto} onChange={(e) => setRemovePhoto(e.target.checked)} /> Hapus foto saat ini
+                            </label>
+                        )}
+                    </div>
+                </div>
+                <Field label="Visi" error={fieldErrors.vision}>
+                    {(id) => <textarea id={id} rows={3} className="input" value={form.vision} onChange={set('vision')} />}
+                </Field>
+                <Field label="Misi (satu per baris)" error={fieldErrors.mission}>
+                    {(id) => <textarea id={id} rows={5} className="input" value={form.mission} onChange={set('mission')} />}
+                </Field>
                 <label className="flex items-center gap-2">
                     <input type="checkbox" className="size-5" checked={form.is_active} onChange={set('is_active')} /> Aktif (tampil di kiosk)
                 </label>
@@ -141,7 +218,13 @@ export default function Kandidat() {
                 ))}
             </div>
 
-            {editing && <CandidateForm candidate={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+            {editing && (
+                <CandidateForm
+                    candidate={editing === 'new' ? null : editing}
+                    nextNumber={(list.data ?? []).reduce((m, c) => Math.max(m, c.number), 0) + 1}
+                    onClose={() => setEditing(null)}
+                />
+            )}
         </div>
     );
 }
