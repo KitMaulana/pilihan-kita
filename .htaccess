@@ -1,0 +1,24 @@
+# Pengarah untuk hosting bersama bila repo di-clone LANGSUNG ke folder dokumen (mis. public_html/pilihankita).
+# Semua permintaan diarahkan ke public/. Berkas di luar public/ (.env, vendor, storage, .git, dst.) tidak
+# pernah dilayani: dipetakan ke public/<jalur> yang tidak ada → 404 dari Laravel, atau diblokir 403 di bawah.
+# Cara yang lebih aman tetap: dokumen-root = public/ (lihat docs/DEPLOY.md).
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Validasi sertifikat SSL (Let's Encrypt) harus tetap bisa dibaca dari akar.
+    RewriteRule ^\.well-known/ - [L]
+
+    # Blokir tegas folder & berkas sensitif (lapis kedua; lapis pertama = pemetaan ke public/).
+    RewriteRule ^(\.git|\.env|vendor|node_modules|bootstrap|database|tests|docs|scripts|PILKETOS)(/|$) - [F,L,NC]
+    RewriteRule ^(\.env.*|\.git.*|\.editorconfig|artisan|composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml|vite\.config\.js|CLAUDE\.md|README\.md)$ - [F,L,NC]
+
+    # Teruskan header Authorization (sama seperti public/.htaccess)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Semua yang lain → public/ (sekali saja, hindari perulangan)
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>

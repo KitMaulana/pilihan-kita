@@ -25,6 +25,20 @@ Tidak ada Node.js/Python di server.
    ```bash
    cd ~/domains/pemilihan.contoh.id && mv public_html public_html.bak && ln -s app/public public_html
    ```
+   **Alternatif — clone langsung ke folder subdomain** (mis. `public_html/pilihankita`, tanpa mengubah document root): repo sudah memuat `.htaccess` di akarnya yang memetakan semua permintaan ke `public/` dan memblokir `.env`, `.git`, `vendor`, `storage`, dst. Diuji pada Apache dengan document root = akar repo (`/.env`, `/vendor/…`, `/.git/…`, `/composer.json` → 403; aplikasi, API, `/models`, `/wasm`, `/build` normal). Langkahnya:
+   ```bash
+   cd ~/domains/ciptakita.id/public_html
+   mv pilihankita pilihankita.bak            # folder bawaan hosting (boleh dihapus kemudian)
+   git clone https://github.com/KitMaulana/pilihan-kita.git pilihankita
+   cd pilihankita
+   composer install --no-dev --optimize-autoloader
+   cp .env.example .env                      # isi sesuai bagian 2
+   php artisan key:generate && php artisan migrate --force && php artisan db:seed --force
+   php artisan storage:link
+   php artisan config:cache && php artisan route:cache && php artisan view:cache
+   chmod -R 775 storage bootstrap/cache
+   ```
+   Cara ini lebih rapuh daripada document-root = `public/` (pengaman bergantung pada `.htaccess` yang tetap terbaca server). Setelah deploy, **periksa** `https://domain/.env` dan `https://domain/vendor/autoload.php` → harus 403/404.
 6. **Model wajah**: sudah ikut repo (`git clone`/`git pull`). Cukup verifikasi checksum terhadap `public/models/README.md`:
    ```bash
    sha256sum app/public/models/*
