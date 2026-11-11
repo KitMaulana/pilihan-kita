@@ -85,6 +85,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('voters/{voter}', [VoterController::class, 'destroy']);
             Route::delete('face-templates/{voter}', [FaceTemplateController::class, 'destroy']);
             Route::post('face-templates/purge', [FaceTemplateController::class, 'purge']);
+            Route::post('election/reset-votes', [ElectionController::class, 'resetVotes']);
 
             Route::get('users', [UserController::class, 'index']);
             Route::post('users', [UserController::class, 'store']);

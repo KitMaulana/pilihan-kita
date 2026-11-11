@@ -40,9 +40,11 @@ Terakhir diperbarui: 2026-11-10.
 3. **Bug kandidat:** penyebab = nomor urut berawalan nol (`01`) ditolak `integer` + pesan Inggris (tidak ada berkas terjemahan). Perbaikan: normalisasi nomor di `CandidateRequest`, input nomor hanya angka + validasi di klien, pratinjau foto & cek ukuran ≤ 2 MB sebelum kirim, `lang/id/validation.php`. **Foto kandidat kini dilayani lewat `GET /api/v1/public/candidates/{id}/photo`** (tidak butuh symlink `public/storage` maupun APP_URL yang benar di Hostinger).
 4. **Uji Wajah:** tab "Uji cepat" (unggah foto acuan → "Mulai scan wajah" → hasil Cocok / Ambigu / Tidak cocok memakai ambang & margin pengaturan, skor per foto, waktu proses, liveness opsional, simpan ke data akurasi) + tab "Uji akurasi (lanjutan)" (alat lama).
 
+5. **Reset semua suara (2026-11-11, khusus admin)** — menu Jadwal & Status → "Reset suara (uji coba)". `POST /panitia/election/reset-votes` (`VoteResetService`), konfirmasi ketik `RESET SUARA`. Menghapus suara + ledger + tiket + penanda sudah memilih, `has_voted` dikembalikan; opsional hapus log percobaan & buka kunci pemilih. Pemilih, kandidat, wajah, jadwal, status tetap. Ditolak bila `published`. Tercatat `votes.reset_all`. **Pembatalan satu suara (via kode resi) belum dibuat** — menunggu keputusan pemilik; pembatalan per nama pemilih tidak mungkin karena `votes` sengaja tanpa identitas (§5.2).
+
 ## Uji yang sudah dijalankan
 
-- `php artisan test` → **72 lulus** (2026-11-10) (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
+- `php artisan test` → **76 lulus** (2026-11-11) (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
 - `npm run build` sukses (build 788 KB; runtime WASM terpisah di `public/wasm/`).
 - Uji HTTP end-to-end (login+CSRF → daftar tablet → buka → cadangan → konfirmasi → suara → replay → tolak memilih ulang).
 - Chrome headless + CDP: 360 px (beranda, hasil, resi, login, dasbor) tanpa scroll horizontal & tanpa error konsol; alur kiosk lewat klik sampai resi.

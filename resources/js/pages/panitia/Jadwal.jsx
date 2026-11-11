@@ -334,6 +334,62 @@ function SimulationPanel({ election }) {
     );
 }
 
+/** Khusus admin: hapus semua suara pemilihan aktif (uji coba). Pemilih, kandidat & wajah tetap. */
+function ResetVotesPanel({ election }) {
+    const qc = useQueryClient();
+    const [open, setOpen] = useState(false);
+    const [clearAttempts, setClearAttempts] = useState(true);
+    const [error, setError] = useState(null);
+    const m = useMutation({
+        mutationFn: (confirm) => api.post('/panitia/election/reset-votes', { confirm, clear_attempts: clearAttempts }),
+        onSuccess: ({ data }) => {
+            toast.success(data.message);
+            setOpen(false);
+            setError(null);
+            qc.invalidateQueries();
+        },
+        onError: (e) => setError(errorMessage(e)),
+    });
+    const published = election?.status === 'published';
+
+    return (
+        <section className="card space-y-3 border-amber-200">
+            <h2 className="font-bold text-amber-900">Reset suara (uji coba)</h2>
+            <p className="text-sm text-slate-600">
+                Menghapus <b>semua suara</b> pemilihan ini beserta ledger-nya, lalu mengembalikan semua pemilih ke status <b>belum memilih</b>. Data pemilih, kandidat, template wajah,
+                jadwal, dan status pemilihan <b>tidak</b> berubah. Gunakan setelah uji coba, sebelum pemungutan suara sungguhan dimulai.
+            </p>
+            {election && (
+                <p className="text-sm">
+                    Suara saat ini: <b>{election.votes_count ?? 0}</b>
+                </p>
+            )}
+            <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" className="size-5" checked={clearAttempts} onChange={(e) => setClearAttempts(e.target.checked)} />
+                Hapus juga log percobaan akses &amp; buka kunci pemilih yang terkunci
+            </label>
+            {published && <Alert type="warning">Hasil sudah dipublikasikan — suara tidak dapat direset.</Alert>}
+            <button className="btn-danger" disabled={!election || published} onClick={() => setOpen(true)}>
+                Reset semua suara
+            </button>
+            <TypedConfirm
+                open={open}
+                onClose={() => {
+                    setOpen(false);
+                    setError(null);
+                }}
+                onConfirm={(v) => m.mutate(v)}
+                title="Reset semua suara"
+                description={`${election?.votes_count ?? 0} suara akan dihapus permanen dan semua pemilih bisa memilih lagi. Tindakan ini tercatat di log aktivitas dan tidak dapat dibatalkan.`}
+                word="RESET SUARA"
+                danger
+                busy={m.isPending}
+                error={error}
+            />
+        </section>
+    );
+}
+
 function RetentionPanel() {
     const qc = useQueryClient();
     const [open, setOpen] = useState(false);
@@ -381,6 +437,7 @@ export default function Jadwal() {
                     <SettingsForm election={election} />
                 </>
             )}
+            {isAdmin && election && <ResetVotesPanel election={election} />}
             {isAdmin && <SimulationPanel election={election} />}
             {isAdmin && <RetentionPanel />}
         </div>

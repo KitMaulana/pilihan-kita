@@ -11,6 +11,7 @@ use App\Services\AuditService;
 use App\Services\ElectionService;
 use App\Services\LedgerService;
 use App\Services\ResultService;
+use App\Services\VoteResetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -84,6 +85,24 @@ class ElectionController extends Controller
         $info = $service->transition($election, $request->input('status'));
 
         return response()->json(['data' => new ElectionResource($election->refresh()), 'info' => $info]);
+    }
+
+    /** Khusus admin: reset semua suara (uji coba). Konfirmasi ganda: ketik "RESET SUARA". */
+    public function resetVotes(Request $request, VoteResetService $reset): JsonResponse
+    {
+        $request->validate(
+            ['confirm' => ['required', 'in:RESET SUARA'], 'clear_attempts' => ['sometimes', 'boolean']],
+            ['confirm.required' => 'Ketik "RESET SUARA" untuk mengonfirmasi.', 'confirm.in' => 'Ketik "RESET SUARA" untuk mengonfirmasi.'],
+        );
+        $election = Election::current() ?? abort(404, 'Belum ada pemilihan.');
+
+        $result = $reset->resetAll($election, $request->boolean('clear_attempts'));
+
+        return response()->json([
+            'data' => new ElectionResource($election->refresh()),
+            'reset' => $result,
+            'message' => "{$result['votes']} suara dihapus; {$result['voters']} pemilih kembali berstatus belum memilih.",
+        ]);
     }
 
     public function verify(LedgerService $ledger): JsonResponse
