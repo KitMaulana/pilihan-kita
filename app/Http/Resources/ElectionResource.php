@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\BoothCredit;
 use App\Models\Election;
 use App\Services\ElectionService;
 use Illuminate\Http\Request;
@@ -26,6 +27,8 @@ class ElectionResource extends JsonResource
             'ledger_count' => $this->ledger_count,
             'ledger_head_hash' => $this->ledger_head_hash,
             'allowed_transitions' => ElectionService::TRANSITIONS[$this->status] ?? [],
+            // Pemilih yang sudah check-in tetapi belum memilih di bilik.
+            'booth_waiting' => BoothCredit::waiting($this->id)->count(),
             'votes_count' => $votes = $this->votes()->count(),
             // Pemilihan baru boleh dibuat bila yang sekarang simulasi, sudah dipublikasikan,
             // atau ditutup tanpa satu suara pun (mis. draf yang dibatalkan).

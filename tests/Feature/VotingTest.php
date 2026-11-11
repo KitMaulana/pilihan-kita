@@ -93,20 +93,22 @@ class VotingTest extends TestCase
         $this->getJson('/api/v1/kiosk/status', $checkin)->assertOk()->assertJsonPath('device.role', 'checkin');
     }
 
-    public function test_hak_masuk_bilik_kedaluwarsa(): void
+    public function test_hak_masuk_bilik_tidak_hangus_oleh_waktu(): void
     {
-        $election = $this->openElection(['booth_credit_ttl' => 300]);
+        $election = $this->openElection();
+        $election->update(["closes_at" => now()->addDays(5)]);
         [, $checkin] = $this->device();
         [, $booth] = $this->booth();
         $this->checkInByNisn($checkin, Voter::factory()->create()->identifier);
 
-        $this->travel(301)->seconds();
-        $this->boothVote($booth, $election->candidates()->first()->id)->assertStatus(409)->assertJsonPath('code', 'no_checkin');
+        // Pemilih yang sudah check-in pasti memilih: berapa lama pun ia berada di bilik / menunggu.
+        $this->travel(3)->days();
+        $this->getJson("/api/v1/kiosk/booth/status", $booth)->assertJson(["ready" => true, "waiting" => 1]);
+        $this->boothVote($booth, $election->candidates()->first()->id)->assertCreated();
 
-        // Rekonsiliasi tetap seimbang: 1 check-in = 1 hak masuk kedaluwarsa.
         $r = app(LedgerService::class)->verify($election);
-        $this->assertTrue($r['ok'], implode('; ', $r['errors']));
-        $this->assertSame(1, $r['credits_expired']);
+        $this->assertTrue($r["ok"], implode("; ", $r["errors"]));
+        $this->assertSame(0, $r["credits_waiting"]);
     }
 
     public function test_pengiriman_ulang_dengan_idempotency_key_sama_tidak_memakai_dua_hak_masuk(): void
@@ -209,18 +211,28 @@ class VotingTest extends TestCase
         $this->assertTrue($ledger->verify($election)['ok']);
     }
 
-    public function test_penutupan_menghentikan_antrean_bilik(): void
+    public function test_penutupan_menyimpan_hak_masuk_belum_terpakai_dan_buka_kembali_melanjutkan(): void
     {
         $election = $this->openElection();
         [, $checkin] = $this->device();
+        [, $booth] = $this->booth();
         $this->checkInByNisn($checkin, Voter::factory()->create()->identifier);
 
-        $this->actingAs($this->panitia())->postJson('/api/v1/panitia/election/status', ['status' => 'closed', 'confirm' => 'TUTUP'])->assertOk();
+        $this->actingAs($this->admin());
+        $res = $this->postJson("/api/v1/panitia/election/status", ["status" => "closed", "confirm" => "TUTUP"])->assertOk();
+        $res->assertJsonPath("info.unused_checkins", 1)->assertJsonPath("data.booth_waiting", 1);
 
-        $this->assertSame(0, BoothCredit::waiting($election->id)->count());
+        // Hak masuk tidak dihapus/dihanguskan; bilik menolak karena pemungutan ditutup.
+        $this->assertSame(1, BoothCredit::waiting($election->id)->count());
+        $this->boothVote($booth, $election->candidates()->first()->id)->assertStatus(403)->assertJsonPath("code", "voting_closed");
         $r = app(LedgerService::class)->verify($election);
-        $this->assertTrue($r['ok'], implode('; ', $r['errors']));
-        $this->assertSame(1, $r['credits_expired']);
+        $this->assertTrue($r["ok"], implode("; ", $r["errors"]));
+        $this->assertSame(1, $r["credits_waiting"]);
+
+        // Admin membuka kembali → pemilih yang sudah check-in tetap bisa memilih.
+        $this->postJson("/api/v1/panitia/election/status", ["status" => "open", "confirm" => "BUKA"])->assertOk();
+        $this->boothVote($booth, $election->candidates()->first()->id)->assertCreated();
+        $this->assertSame(0, BoothCredit::waiting($election->id)->count());
     }
 
     public function test_perubahan_isi_suara_terdeteksi_verifikasi(): void

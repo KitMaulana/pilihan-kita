@@ -101,9 +101,8 @@ class LedgerService
         $pending = Vote::where('election_id', $election->id)->whereNull('seq')->count();
         $votes = Vote::where('election_id', $election->id)->count();
         $turnout = DB::table('voter_turnouts')->where('election_id', $election->id)->count();
-        // Check-in yang belum (atau tidak jadi) dipakai di bilik masih tersisa sebagai hak masuk.
+        // Check-in yang belum dipakai di bilik masih tersisa sebagai hak masuk (tidak hangus oleh waktu).
         $creditsWaiting = BoothCredit::waiting($election->id)->count();
-        $creditsExpired = BoothCredit::expired($election->id)->count();
 
         if ($sealed > 0 && $election->ledger_head_hash !== $prev) {
             $errors[] = 'Hash terakhir di tabel pemilihan tidak sama dengan ujung rantai.';
@@ -112,8 +111,8 @@ class LedgerService
             $errors[] = "ledger_count ({$election->ledger_count}) ≠ jumlah suara tersegel ({$sealed}).";
         }
         // Rekonsiliasi alur check-in → bilik: setiap check-in menjadi tepat satu suara ATAU satu hak masuk tersisa.
-        if ($votes + $creditsWaiting + $creditsExpired !== $turnout) {
-            $errors[] = "Suara ({$votes}) + hak masuk bilik tersisa (".($creditsWaiting + $creditsExpired).") ≠ jumlah check-in ({$turnout}).";
+        if ($votes + $creditsWaiting !== $turnout) {
+            $errors[] = "Suara ({$votes}) + hak masuk bilik belum terpakai ({$creditsWaiting}) ≠ jumlah check-in ({$turnout}).";
         }
 
         return [
@@ -123,7 +122,6 @@ class LedgerService
             'turnout' => $turnout,
             'votes' => $votes,
             'credits_waiting' => $creditsWaiting,
-            'credits_expired' => $creditsExpired,
             'head' => $sealed > 0 ? $prev : null,
             'errors' => $errors,
         ];

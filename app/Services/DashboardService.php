@@ -41,11 +41,9 @@ class DashboardService
                 'duplicates_flagged' => FaceTemplate::whereNotNull('duplicate_of_voter_id')->count(),
             ],
             'results' => $election ? $this->results->snapshot($election) : null,
-            // Antrean bilik: sudah check-in tapi belum memilih / tidak jadi memilih (kedaluwarsa).
+            // Antrean bilik: sudah check-in tapi belum memilih (tidak hangus oleh waktu).
             'booth' => $election ? [
                 'waiting' => BoothCredit::waiting($election->id)->count(),
-                'expired' => BoothCredit::expired($election->id)->count(),
-                'ttl' => (int) $election->setting('booth_credit_ttl'),
             ] : null,
             'devices' => $this->devices(),
             'anomalies' => $election ? $this->anomalies($election) : [],

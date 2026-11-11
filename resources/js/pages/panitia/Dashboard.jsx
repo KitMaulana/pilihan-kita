@@ -78,17 +78,10 @@ export default function Dashboard() {
                     )}
                     {r && <p className="mt-4 text-xs text-slate-500">{number(r.votes_counted)} suara masuk · dihitung langsung (real-time)</p>}
                     {data.booth && (
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-xl bg-brand-50 p-3">
-                                <p className="text-sm text-brand-800">Antre di bilik suara</p>
-                                <p className="text-2xl font-bold text-brand-900 tabular-nums">{number(data.booth.waiting)}</p>
-                                <p className="text-xs text-slate-500">Sudah check-in, belum memilih</p>
-                            </div>
-                            <div className={`rounded-xl p-3 ${data.booth.expired ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                                <p className="text-sm text-slate-700">Hak masuk bilik hangus</p>
-                                <p className="text-2xl font-bold tabular-nums">{number(data.booth.expired)}</p>
-                                <p className="text-xs text-slate-500">Check-in tetapi tidak memilih dalam {Math.round(data.booth.ttl / 60)} menit</p>
-                            </div>
+                        <div className="mt-4 rounded-xl bg-brand-50 p-3">
+                            <p className="text-sm text-brand-800">Antre di bilik suara</p>
+                            <p className="text-2xl font-bold text-brand-900 tabular-nums">{number(data.booth.waiting)}</p>
+                            <p className="text-xs text-slate-500">Sudah check-in, belum memilih. Hak masuk tidak hangus oleh waktu.</p>
                         </div>
                     )}
                     {part && (

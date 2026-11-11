@@ -55,7 +55,7 @@ class VoteService
             // Ulangi bila hak masuk yang dikunci sudah dipakai bilik lain di transaksi paralel.
             for ($try = 0; $try < 3 && ! $receipt; $try++) {
                 $receipt = DB::transaction(function () use ($election, $candidate) {
-                    $credit = BoothCredit::waiting($election->id)->orderBy('expires_at')->lockForUpdate()->first();
+                    $credit = BoothCredit::waiting($election->id)->orderBy('queued_at')->lockForUpdate()->first();
                     if (! $credit) {
                         return null;
                     }

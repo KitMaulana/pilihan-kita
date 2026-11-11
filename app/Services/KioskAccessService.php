@@ -118,7 +118,7 @@ class KioskAccessService
      * Bilik suara kemudian memakai hak masuk mana pun yang tersedia, sehingga suara
      * tidak pernah bisa dikaitkan ke pemilih yang check-in.
      *
-     * @return array{confirmed: bool, checked_in?: bool, expires_in?: int, message?: string}
+     * @return array{confirmed: bool, checked_in?: bool, message?: string}
      */
     public function confirm(Election $election, KioskDevice $device, string $ticketToken, bool $accepted): array
     {
@@ -132,10 +132,8 @@ class KioskAccessService
             return ['confirmed' => false];
         }
 
-        $ttl = (int) $election->setting('booth_credit_ttl');
-
         try {
-            [$voterId, $method] = DB::transaction(function () use ($election, $device, $ticketToken, $ttl) {
+            [$voterId, $method] = DB::transaction(function () use ($election, $device, $ticketToken) {
                 $ticket = $this->findTicket($election, $device, $ticketToken, BallotTicket::IDENTIFIED, lock: true);
                 // Kunci baris pemilih supaya check-in paralel (dua meja) antre.
                 $voter = DB::table('voters')->where('id', $ticket->voter_id)->lockForUpdate()->first();
@@ -148,7 +146,7 @@ class KioskAccessService
                 // PK komposit = pengaman terakhir satu orang satu hak pilih.
                 DB::table('voter_turnouts')->insert(['election_id' => $election->id, 'voter_id' => $voter->id]);
                 DB::table('voters')->where('id', $voter->id)->update(['has_voted' => true]);
-                BoothCredit::create(['election_id' => $election->id, 'expires_at' => now()->addSeconds($ttl)]);
+                BoothCredit::create(['election_id' => $election->id, 'queued_at' => now()]);
 
                 $method = $ticket->method;
                 $ticket->delete();
@@ -168,7 +166,6 @@ class KioskAccessService
         return [
             'confirmed' => true,
             'checked_in' => true,
-            'expires_in' => $ttl,
             'message' => 'Check-in berhasil. Silakan menuju bilik suara yang kosong.',
         ];
     }
@@ -225,10 +222,10 @@ class KioskAccessService
 
         return [
             'ticket' => $plain,
-            'expires_in' => $ttl,
             'name' => $voter->name,
             'class_name' => $voter->displayClass(),
             'type' => $voter->type,
+            'expires_in' => $ttl,
         ];
     }
 

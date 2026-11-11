@@ -9,7 +9,7 @@ import { create } from 'zustand';
 const initial = {
     step: 'scan',
     identity: null, // { ticket, name, class_name, method, expiresAt }
-    checkin: null, // { name, message, expiresIn } — ditampilkan sesaat di layar "check-in berhasil"
+    checkin: null, // { name, message } — ditampilkan sesaat di layar "check-in berhasil"
     message: null, // { tone, title, text, actions: ['retry','fallback','home'] }
     faceFailures: 0,
 };
@@ -35,7 +35,7 @@ export const useKiosk = create((set, get) => ({
     checkedIn: (data) =>
         set({
             step: 'done',
-            checkin: { name: get().identity?.name, message: data.message, expiresIn: data.expires_in },
+            checkin: { name: get().identity?.name, message: data.message },
             identity: null,
         }),
 

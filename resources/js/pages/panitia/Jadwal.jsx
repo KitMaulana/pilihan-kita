@@ -101,9 +101,6 @@ function SettingsForm({ election }) {
                 <Field label="Waktu konfirmasi nama (detik)">
                     {(id) => <input id={id} type="number" min="30" max="600" className="input" value={s.ticket_identified_ttl} onChange={setS('ticket_identified_ttl')} />}
                 </Field>
-                <Field label="Batas waktu check-in → bilik (detik)" hint="Lewat dari ini, hak masuk bilik hangus (900 = 15 menit).">
-                    {(id) => <input id={id} type="number" min="120" max="3600" className="input" value={s.booth_credit_ttl} onChange={setS('booth_credit_ttl')} />}
-                </Field>
                 <Field label="Ukuran batch segel ledger" hint="Hanya mengacak urutan ledger; hasil langsung tetap real-time.">
                     {(id) => <input id={id} type="number" min="1" max="100" className="input" value={s.seal_batch_size} onChange={setS('seal_batch_size')} />}
                 </Field>
@@ -230,6 +227,13 @@ function StatusPanel({ election }) {
             <StatusStepper status={election.status} />
 
             {election.closed_reason && election.status === 'open' && <Alert type="warning">{election.closed_reason}</Alert>}
+            {election.booth_waiting > 0 && (election.status === 'open' || election.status === 'closed') && (
+                <Alert type="warning" title={`${election.booth_waiting} pemilih sudah check-in tetapi belum memilih di bilik`}>
+                    {election.status === 'open'
+                        ? 'Hak masuk mereka tetap berlaku tanpa batas waktu. Pastikan semuanya sudah memilih sebelum pemilihan ditutup.'
+                        : 'Pemilihan sudah ditutup sehingga bilik tidak lagi menerima suara. Admin dapat membuka kembali pemilihan agar mereka bisa memilih.'}
+                </Alert>
+            )}
             {election.status === 'draft' && (
                 <p className="text-sm text-slate-600">
                     Pemilihan masih draf. Anda bisa <b>membukanya</b> (perlu minimal satu kandidat aktif) atau <b>menutupnya</b> langsung — mis. untuk membatalkan draf, meskipun belum ada data apa pun.

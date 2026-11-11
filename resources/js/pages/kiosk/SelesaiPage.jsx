@@ -10,7 +10,6 @@ export default function SelesaiPage() {
     const reset = useKiosk((s) => s.reset);
     const [deadline] = useState(() => Date.now() + AUTO_RESET_SECONDS * 1000);
     const left = useCountdown(deadline, reset);
-    const minutes = checkin?.expiresIn ? Math.round(checkin.expiresIn / 60) : null;
 
     return (
         <div className="flex flex-1 items-center justify-center p-4">
@@ -28,7 +27,6 @@ export default function SelesaiPage() {
                         <li>Pilih kandidat di layar bilik — pilihan Anda <b>rahasia</b>, bilik tidak tahu siapa Anda.</li>
                         <li>Catat kode resi yang muncul setelah memilih.</li>
                     </ol>
-                    {minutes && <p className="mt-3 text-sm text-slate-500">Hak masuk bilik berlaku ±{minutes} menit.</p>}
                 </div>
 
                 <button className="btn-primary mt-6 min-h-14 w-full text-lg" onClick={reset}>
