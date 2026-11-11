@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureKioskDevice;
 use App\Http\Middleware\EnsureKioskRole;
+use App\Http\Middleware\ResetCurrentElection;
+use App\Http\Middleware\ResolvePanitiaSession;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureVotingOpen;
 use App\Http\Middleware\SecurityHeaders;
@@ -24,11 +26,15 @@ return Application::configure(basePath: dirname(__DIR__))
         // Hostinger + Cloudflare: percayai proxy agar IP & HTTPS terdeteksi benar.
         $middleware->trustProxies(at: '*');
 
+        // Multi-sekolah: sesi aktif ditentukan ulang di setiap request (panel / tablet / publik).
+        $middleware->prependToGroup('api', ResetCurrentElection::class);
+
         $middleware->alias([
             'kiosk.device' => EnsureKioskDevice::class,
             'kiosk.role' => EnsureKioskRole::class,
             'voting.open' => EnsureVotingOpen::class,
             'role' => EnsureRole::class,
+            'panitia.session' => ResolvePanitiaSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

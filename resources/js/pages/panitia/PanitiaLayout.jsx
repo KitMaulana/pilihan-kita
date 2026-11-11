@@ -3,7 +3,6 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../features/auth/useAuth';
 import { api } from '../../lib/api';
-import { STATUS_LABEL } from '../../lib/format';
 import { BrandLogo } from '../../components/BrandLogo';
 import {
     IconActivity,
@@ -17,10 +16,11 @@ import {
     IconLogOut,
     IconMenu,
     IconShieldCheck,
+    IconSchool,
     IconUpload,
     IconUsers,
 } from '../../components/Icons';
-import { Badge } from '../../components/ui';
+import SessionSwitcher from '../../components/SessionSwitcher';
 
 const NAV = [
     { to: '/panitia', label: 'Dasbor', end: true, Icon: IconDashboard },
@@ -33,6 +33,7 @@ const NAV = [
     { to: '/panitia/uji-wajah', label: 'Uji Wajah', Icon: IconFaceScan },
 ];
 
+/** Sesi (pemilihan sekolah) yang sedang dikelola. Kunci query ikut berubah saat pindah sesi (lihat switchSession). */
 export function useElection() {
     return useQuery({
         queryKey: ['election'],
@@ -46,7 +47,9 @@ export default function PanitiaLayout() {
     const [open, setOpen] = useState(false);
     const { data: election } = useElection();
 
-    const items = isAdmin ? [...NAV, { to: '/panitia/pengguna', label: 'Pengguna', Icon: IconShieldCheck }] : NAV;
+    const items = isAdmin
+        ? [{ to: '/panitia/sesi', label: 'Sesi Sekolah', Icon: IconSchool }, ...NAV, { to: '/panitia/pengguna', label: 'Pengguna', Icon: IconShieldCheck }]
+        : NAV;
     const linkCls = ({ isActive }) =>
         `group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all ${
             isActive
@@ -131,20 +134,11 @@ export default function PanitiaLayout() {
                             >
                                 <IconMenu className="size-5" />
                             </button>
-                            <BrandLogo variant="mark" size="xs" className="lg:hidden" />
-                            <div className="flex min-w-0 items-center gap-2 text-sm">
-                                <span className="truncate font-bold text-slate-900">{election?.name || 'Belum ada pemilihan'}</span>
-                                {election && (
-                                    <Badge color={election.status === 'open' ? 'green' : election.status === 'published' ? 'blue' : 'gray'} dot={election.status === 'open'}>
-                                        {STATUS_LABEL[election.status]}
-                                    </Badge>
-                                )}
-                                {election?.is_simulation && <Badge color="yellow">SIMULASI</Badge>}
-                            </div>
+                            <SessionSwitcher isAdmin={isAdmin} />
                         </div>
 
                         <a
-                            href="/hasil"
+                            href={election?.public_url || '/hasil'}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-brand-800 transition hover:border-brand-300 hover:bg-brand-50"

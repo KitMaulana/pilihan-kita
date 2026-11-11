@@ -25,6 +25,8 @@ class UserStoreRequest extends FormRequest
             'password' => [$user ? 'nullable' : 'required', Password::min(8)],
             'role' => [$user ? 'sometimes' : 'required', Rule::in([User::ROLE_ADMIN, User::ROLE_PANITIA])],
             'is_active' => ['sometimes', 'boolean'],
+            // Panitia boleh dibatasi ke satu sesi (sekolah); kosong = semua sesi. Admin selalu semua sesi.
+            'election_id' => ['sometimes', 'nullable', 'integer', 'exists:elections,id'],
         ];
     }
 }

@@ -287,3 +287,30 @@ export function IconRefresh(props) {
         </Icon>
     );
 }
+
+export function IconSchool(props) {
+    return (
+        <Icon {...props}>
+            <path d="M3 21h18" />
+            <path d="M5 21V10l7-5 7 5v11" />
+            <path d="M10 21v-5h4v5" />
+            <path d="M12 9.5v.01" />
+        </Icon>
+    );
+}
+
+export function IconChevronDown(props) {
+    return (
+        <Icon {...props}>
+            <path d="M6 9l6 6 6-6" />
+        </Icon>
+    );
+}
+
+export function IconPlus(props) {
+    return (
+        <Icon {...props}>
+            <path d="M12 5v14M5 12h14" />
+        </Icon>
+    );
+}

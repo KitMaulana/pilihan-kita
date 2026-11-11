@@ -11,6 +11,12 @@ class VoterImportTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->schoolSession(); // panel panitia selalu bekerja di dalam satu sesi (sekolah)
+    }
+
     private function upload(string $csv, string $type = 'student')
     {
         return $this->post('/api/v1/panitia/voters/import/preview', [

@@ -9,7 +9,7 @@ class ActivityLog extends Model
 {
     public const UPDATED_AT = null;
 
-    protected $fillable = ['user_id', 'action', 'subject_type', 'subject_id', 'details', 'ip'];
+    protected $fillable = ['user_id', 'election_id', 'action', 'subject_type', 'subject_id', 'details', 'ip'];
 
     protected function casts(): array
     {

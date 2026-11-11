@@ -11,6 +11,12 @@ class FaceTemplateTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->schoolSession(); // panel panitia selalu bekerja di dalam satu sesi (sekolah)
+    }
+
     public function test_template_tersimpan_sebagai_biner_dan_tidak_bocor_di_respons(): void
     {
         $this->actingAs($this->panitia());

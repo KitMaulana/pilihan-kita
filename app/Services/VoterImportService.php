@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Election;
 use App\Models\Voter;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -38,7 +39,7 @@ class VoterImportService
      *
      * @return array{token: string, type: string, ready: array, problems: array, summary: array}
      */
-    public function preview(string $csv, string $type): array
+    public function preview(string $csv, string $type, Election $election): array
     {
         $rows = $this->parseCsv($csv, $type);
 
@@ -52,10 +53,10 @@ class VoterImportService
         $seenNameDob = [];
 
         // Data yang sudah ada di DB, untuk menandai "perbarui" vs "baru".
-        $existingIds = Voter::where('type', $type)->whereNotNull('identifier')
+        $existingIds = Voter::where('election_id', $election->id)->where('type', $type)->whereNotNull('identifier')
             ->pluck('id', 'identifier')->all();
         $existingNoId = $type === Voter::TEACHER
-            ? Voter::where('type', $type)->whereNull('identifier')->get(['id', 'name', 'birth_date', 'distinguisher'])
+            ? Voter::where('election_id', $election->id)->where('type', $type)->whereNull('identifier')->get(['id', 'name', 'birth_date', 'distinguisher'])
                 ->groupBy(fn ($v) => $this->nameKey($v->name, $v->birth_date->format('Y-m-d')))
             : collect();
 
@@ -162,7 +163,7 @@ class VoterImportService
         usort($problems, fn ($a, $b) => $a['line'] <=> $b['line']);
 
         $token = (string) Str::uuid();
-        Cache::put($this->cacheKey($token), ['type' => $type, 'rows' => $ready], now()->addMinutes(30));
+        Cache::put($this->cacheKey($token), ['type' => $type, 'election_id' => $election->id, 'rows' => $ready], now()->addMinutes(30));
 
         return [
             'token' => $token,
@@ -184,18 +185,22 @@ class VoterImportService
      *
      * @return array{created: int, updated: int}
      */
-    public function commit(string $token): array
+    public function commit(string $token, Election $election): array
     {
         $data = Cache::pull($this->cacheKey($token));
         if (! $data) {
             throw new InvalidArgumentException('Pratinjau kedaluwarsa atau tidak ditemukan. Unggah ulang berkas CSV.');
         }
 
+        if (($data['election_id'] ?? null) !== $election->id) {
+            throw new InvalidArgumentException('Pratinjau dibuat untuk sesi lain. Pilih sesi yang benar lalu unggah ulang berkas CSV.');
+        }
+
         $type = $data['type'];
         $created = 0;
         $updated = 0;
 
-        DB::transaction(function () use ($data, $type, &$created, &$updated) {
+        DB::transaction(function () use ($data, $type, $election, &$created, &$updated) {
             foreach ($data['rows'] as $row) {
                 $attrs = [
                     'name' => $row['name'],
@@ -205,7 +210,7 @@ class VoterImportService
                     'is_active' => true,
                 ];
 
-                $query = Voter::where('type', $type)->where('is_simulation', false);
+                $query = Voter::where('election_id', $election->id)->where('type', $type);
                 if ($row['identifier']) {
                     $query->where('identifier', $row['identifier']);
                 } else {
@@ -221,7 +226,7 @@ class VoterImportService
                     $voter->fill($attrs)->save();
                     $updated++;
                 } else {
-                    Voter::create($attrs + ['type' => $type, 'identifier' => $row['identifier']]);
+                    Voter::create($attrs + ['type' => $type, 'identifier' => $row['identifier'], 'election_id' => $election->id, 'is_simulation' => (bool) $election->is_simulation]);
                     $created++;
                 }
             }
@@ -236,7 +241,7 @@ class VoterImportService
      *
      * @param  array{type: string, identifier?: ?string, name: string, class_name?: ?string, birth_date: string, distinguisher?: ?string}  $data
      */
-    public function createOne(array $data, bool $simulation = false): Voter
+    public function createOne(array $data, Election $election): Voter
     {
         $type = $data['type'];
         $identifier = ($data['identifier'] ?? null) ?: null;
@@ -244,14 +249,14 @@ class VoterImportService
         $label = $type === Voter::STUDENT ? 'NISN' : 'NIP';
 
         if ($identifier) {
-            $existing = Voter::where('type', $type)->where('identifier', $identifier)->first();
+            $existing = Voter::where('election_id', $election->id)->where('type', $type)->where('identifier', $identifier)->first();
             if ($existing) {
                 throw ValidationException::withMessages([
-                    'identifier' => "{$label} {$identifier} sudah terdaftar atas nama {$existing->name}".($existing->is_simulation ? ' (data simulasi)' : '').'.',
+                    'identifier' => "{$label} {$identifier} sudah terdaftar atas nama {$existing->name} di sesi ini.",
                 ]);
             }
         } else {
-            $twins = Voter::where('type', $type)->whereNull('identifier')
+            $twins = Voter::where('election_id', $election->id)->where('type', $type)->whereNull('identifier')
                 ->where('name', $data['name'])->whereDate('birth_date', $data['birth_date'])->get();
             if ($twins->isNotEmpty()) {
                 $clash = ! $distinguisher
@@ -273,7 +278,8 @@ class VoterImportService
             'birth_date' => $data['birth_date'],
             'distinguisher' => $type === Voter::TEACHER ? $distinguisher : null,
             'is_active' => true,
-            'is_simulation' => $simulation,
+            'election_id' => $election->id,
+            'is_simulation' => (bool) $election->is_simulation,
         ]);
     }
 

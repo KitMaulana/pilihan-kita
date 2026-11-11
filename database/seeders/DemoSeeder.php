@@ -17,7 +17,8 @@ class DemoSeeder extends Seeder
         }
 
         $election = Election::create([
-            'name' => 'Pemilihan Ketua OSIS SMAN 1 Ciruas 2026/2027',
+            'name' => 'Pemilihan Ketua OSIS 2026/2027',
+            'school_name' => 'SMAN 1 Ciruas',
             'status' => Election::DRAFT,
             'settings' => Election::DEFAULT_SETTINGS,
         ]);
@@ -35,6 +36,7 @@ class DemoSeeder extends Seeder
         $classes = ['X-1', 'X-2', 'XI IPA 1', 'XI IPS 1', 'XII IPA 1', 'XII IPS 2'];
         for ($i = 1; $i <= 60; $i++) {
             Voter::create([
+                'election_id' => $election->id,
                 'type' => Voter::STUDENT,
                 'identifier' => '00'.str_pad((string) (71000000 + $i), 8, '0', STR_PAD_LEFT),
                 'name' => $faker->name(),
@@ -44,6 +46,7 @@ class DemoSeeder extends Seeder
         }
         for ($i = 1; $i <= 6; $i++) {
             Voter::create([
+                'election_id' => $election->id,
                 'type' => Voter::TEACHER,
                 'identifier' => $i <= 4 ? '1980010120050110'.str_pad((string) $i, 2, '0', STR_PAD_LEFT) : null,
                 'name' => $faker->name(),

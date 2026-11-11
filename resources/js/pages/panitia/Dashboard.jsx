@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, errorMessage } from '../../lib/api';
 import { formatDateTime, formatTime, number, percent } from '../../lib/format';
 import {
     IconAlertTriangle,
@@ -23,7 +23,7 @@ const BAR_COLORS = [
 ];
 
 export default function Dashboard() {
-    const { data, isLoading, dataUpdatedAt } = useQuery({
+    const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useQuery({
         queryKey: ['dashboard'],
         queryFn: () => api.get('/panitia/dashboard').then((r) => r.data),
         refetchInterval: 10_000,
@@ -33,6 +33,26 @@ export default function Dashboard() {
         return (
             <div className="card flex justify-center py-12">
                 <Spinner label="Memuat dasbor…" />
+            </div>
+        );
+    }
+    if (isError && !data) {
+        const status = error?.response?.status;
+        return (
+            <div className="space-y-4">
+                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Dasbor Kontrol</h1>
+                <Alert type="danger" title="Dasbor gagal dimuat">
+                    <p>{errorMessage(error)}</p>
+                    {status >= 500 && (
+                        <p className="mt-2 text-sm">
+                            Kesalahan server (HTTP {status}). Bila baru memperbarui aplikasi di hosting, pastikan sudah menjalankan <code>php artisan migrate --force</code> lalu{' '}
+                            <code>php artisan config:cache</code>. Detail ada di <code>storage/logs/laravel.log</code>.
+                        </p>
+                    )}
+                </Alert>
+                <button className="btn-primary" onClick={() => refetch()} disabled={isFetching}>
+                    {isFetching ? 'Mencoba…' : 'Coba lagi'}
+                </button>
             </div>
         );
     }
@@ -55,12 +75,12 @@ export default function Dashboard() {
             </div>
 
             {!data.election && (
-                <Alert type="info" title="Belum ada pemilihan">
-                    Buat pemilihan terlebih dahulu di menu{' '}
-                    <Link to="/panitia/jadwal" className="font-bold underline">
-                        Jadwal &amp; Status
-                    </Link>
-                    .
+                <Alert type="info" title="Belum ada sesi sekolah">
+                    Buat sesi untuk sekolah Anda di menu{' '}
+                    <Link to="/panitia/sesi" className="font-bold underline">
+                        Sesi Sekolah
+                    </Link>{' '}
+                    (khusus admin).
                 </Alert>
             )}
 

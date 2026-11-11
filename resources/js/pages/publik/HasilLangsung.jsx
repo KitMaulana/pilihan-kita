@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDateTime, formatTime, number, percent, STATUS_LABEL } from '../../lib/format';
 import { Alert, Badge, Spinner, toast } from '../../components/ui';
-import { IconAward, IconCalendarClock, IconChartBar, IconCheckCircle, IconCopy, IconShieldCheck, IconUsers } from '../../components/Icons';
+import { IconArrowRight, IconAward, IconCalendarClock, IconChartBar, IconCheckCircle, IconCopy, IconSchool, IconShieldCheck, IconUsers } from '../../components/Icons';
 import PublicShell from './PublicShell';
 
 // Warna batang dibedakan + diberi label angka (tidak bergantung warna saja).
@@ -15,10 +16,22 @@ const BAR_COLORS = [
     'bg-gradient-to-r from-violet-600 to-indigo-500',
 ];
 
-export function useResults() {
+/** Daftar sekolah yang pemilihannya sudah dibuka / selesai. */
+export function usePublicSessions() {
     return useQuery({
-        queryKey: ['public-results'],
-        queryFn: () => api.get('/public/results').then((r) => r.data),
+        queryKey: ['public-sessions'],
+        queryFn: () => api.get('/public/sessions').then((r) => r.data.data),
+        refetchInterval: 30_000,
+        staleTime: 15_000,
+    });
+}
+
+export function useResults(slug) {
+    return useQuery({
+        queryKey: ['public-results', slug],
+        enabled: !!slug,
+        retry: (n, e) => e?.response?.status !== 404 && n < 3,
+        queryFn: () => api.get('/public/results', { params: { session: slug } }).then((r) => r.data),
         refetchInterval: 5000,
         refetchIntervalInBackground: false,
         staleTime: 4000,
@@ -49,8 +62,100 @@ function Participation({ label, data, barColor = 'bg-gradient-to-r from-emerald-
     );
 }
 
+const STATUS_TONE = { open: 'green', closed: 'red', published: 'blue' };
+
+/** Pilihan sekolah (bila lebih dari satu sesi berjalan). */
+function SchoolPicker({ sessions }) {
+    return (
+        <div className="space-y-5">
+            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-950 via-brand-900 to-brand-800 p-6 text-white shadow-lg sm:p-7">
+                <div className="bg-tech-grid pointer-events-none absolute inset-0 opacity-50" aria-hidden="true" />
+                <div className="relative">
+                    <p className="text-xs font-semibold tracking-wider text-brand-200 uppercase">Hitung Langsung</p>
+                    <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">Pilih sekolah</h1>
+                    <p className="mt-1 text-sm text-brand-100 sm:text-base">Hasil setiap sekolah dihitung terpisah dan diperbarui otomatis.</p>
+                </div>
+            </section>
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {sessions.map((s) => (
+                    <li key={s.slug}>
+                        <Link to={`/hasil/${s.slug}`} className="card group flex h-full flex-col gap-3 transition hover:-translate-y-0.5 hover:shadow-lg">
+                            <div className="flex items-start justify-between gap-3">
+                                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                                    <IconSchool className="size-5.5" />
+                                </span>
+                                <div className="flex flex-col items-end gap-1">
+                                    <Badge color={STATUS_TONE[s.status] || 'gray'} dot={s.is_voting_open}>
+                                        {s.is_voting_open ? 'Sedang berlangsung' : STATUS_LABEL[s.status]}
+                                    </Badge>
+                                    {s.is_simulation && <Badge color="yellow">SIMULASI</Badge>}
+                                </div>
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-lg font-extrabold text-slate-900">{s.school_name}</h2>
+                                <p className="text-sm text-slate-500">{s.name}</p>
+                            </div>
+                            <span className="mt-auto inline-flex items-center gap-1.5 text-sm font-bold text-brand-700 group-hover:gap-2.5">
+                                Lihat hasil <IconArrowRight className="size-4 transition-all" />
+                            </span>
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+/** Pindah sekolah langsung dari halaman hasil. */
+function SchoolSwitch({ sessions, slug }) {
+    const navigate = useNavigate();
+    if (sessions.length < 2) return null;
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="school-switch" className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+                <IconSchool className="size-4" /> Sekolah
+            </label>
+            <select id="school-switch" className="input min-h-11 w-auto max-w-full py-2" value={slug} onChange={(e) => navigate(`/hasil/${e.target.value}`)}>
+                {sessions.map((s) => (
+                    <option key={s.slug} value={s.slug}>
+                        {s.school_name}
+                        {s.is_simulation ? ' (simulasi)' : ''}
+                    </option>
+                ))}
+            </select>
+        </div>
+    );
+}
+
 export default function HasilLangsung() {
-    const { data, isLoading, isError, dataUpdatedAt } = useResults();
+    const { slug } = useParams();
+    const sessions = usePublicSessions();
+
+    if (!slug) {
+        if (sessions.isLoading) {
+            return (
+                <PublicShell wide>
+                    <div className="card flex justify-center py-12">
+                        <Spinner label="Memuat daftar sekolah…" />
+                    </div>
+                </PublicShell>
+            );
+        }
+        const list = sessions.data || [];
+        if (list.length === 1) return <Navigate to={`/hasil/${list[0].slug}`} replace />;
+        return (
+            <PublicShell wide>
+                {sessions.isError && <Alert type="danger">Gagal memuat daftar sekolah. Mencoba lagi otomatis…</Alert>}
+                {list.length === 0 && !sessions.isError ? <Alert>Belum ada pemilihan yang dibuka.</Alert> : <SchoolPicker sessions={list} />}
+            </PublicShell>
+        );
+    }
+
+    return <SchoolResults slug={slug} sessions={sessions.data || []} />;
+}
+
+function SchoolResults({ slug, sessions }) {
+    const { data, isLoading, isError, error, dataUpdatedAt } = useResults(slug);
     const [copied, setCopied] = useState(false);
 
     const topVotes = data?.candidates?.reduce((m, c) => Math.max(m, c.votes || 0), 0) || 0;
@@ -74,7 +179,18 @@ export default function HasilLangsung() {
                     <Spinner label="Memuat hitung langsung…" />
                 </div>
             )}
-            {isError && <Alert type="danger">Gagal memuat hasil. Mencoba lagi otomatis…</Alert>}
+            <div className="mb-4">
+                <SchoolSwitch sessions={sessions} slug={slug} />
+            </div>
+            {isError && error?.response?.status === 404 && (
+                <Alert type="warning" title="Sekolah tidak ditemukan">
+                    Tautan ini tidak dikenal atau pemilihannya belum dibuka.{' '}
+                    <Link to="/hasil" className="font-bold underline">
+                        Lihat daftar sekolah
+                    </Link>
+                </Alert>
+            )}
+            {isError && error?.response?.status !== 404 && <Alert type="danger">Gagal memuat hasil. Mencoba lagi otomatis…</Alert>}
             {data && !data.election && <Alert>Belum ada pemilihan yang disiapkan.</Alert>}
 
             {data?.election && (
@@ -96,7 +212,8 @@ export default function HasilLangsung() {
                                 <h1 className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">
                                     {data.is_final ? 'Hasil Akhir Pemilihan' : 'Hitung Langsung'}
                                 </h1>
-                                <p className="mt-0.5 text-sm text-brand-100 sm:text-base">{data.election.name}</p>
+                                <p className="mt-0.5 text-base font-bold text-white sm:text-lg">{data.election.school_name}</p>
+                                <p className="text-sm text-brand-100">{data.election.name}</p>
                             </div>
 
                             <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-left backdrop-blur-md sm:text-right">

@@ -18,11 +18,12 @@ class FaceTemplateService
      */
     public function store(Voter $voter, array $embedding, string $modelVersion, ?float $quality): array
     {
-        $election = Election::current();
+        $election = $voter->election ?? Election::current();
         $dupThreshold = (float) ($election?->setting('duplicate_threshold') ?? Election::DEFAULT_SETTINGS['duplicate_threshold']);
 
         // Deteksi wajah ganda: bandingkan dengan semua template LAIN.
-        $match = $this->matcher->match($embedding, $voter->id, (bool) $voter->is_simulation);
+        // Deteksi wajah ganda hanya di antara pemilih sesi (sekolah) yang sama.
+        $match = $this->matcher->match($embedding, $voter->id, $voter->election_id);
         $duplicate = null;
         if ($match['voter_id'] !== null && $match['s1'] >= $dupThreshold) {
             $other = Voter::find($match['voter_id']);
@@ -68,7 +69,17 @@ class FaceTemplateService
         return $deleted;
     }
 
-    /** Penghapusan massal pasca-pemilihan (kebijakan retensi §8). */
+    /** Retensi per sesi: hapus semua template wajah pemilih satu sekolah (sekolah lain tidak tersentuh). */
+    public function purgeForElection(Election $election): int
+    {
+        $count = FaceTemplate::whereIn('voter_id', $election->voters()->select('id'))->delete();
+        $this->matcher->flush();
+        $this->audit->log('face_template.purged_session', $election, ['count' => $count]);
+
+        return $count;
+    }
+
+    /** Penghapusan massal SEMUA sesi (perintah konsol face:purge-all). */
     public function purgeAll(): int
     {
         $count = FaceTemplate::count();

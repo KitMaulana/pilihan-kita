@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Election;
 use App\Models\KioskDevice;
 use Closure;
 use Illuminate\Http\Request;
@@ -27,6 +28,8 @@ class EnsureKioskDevice
         }
 
         $request->attributes->set('kiosk_device', $device);
+        // Tablet hanya melayani sesi (sekolah) tempat ia didaftarkan.
+        Election::useCurrent($device->election);
 
         return $next($request);
     }

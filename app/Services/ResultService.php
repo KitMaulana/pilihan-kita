@@ -51,7 +51,7 @@ class ResultService
             'percent' => $counted > 0 ? round(($counts[$c->id] ?? 0) * 100 / $counted, 2) : 0,
         ])->values();
 
-        $eligible = Voter::where('is_active', true)->where('is_simulation', (bool) $election->is_simulation)
+        $eligible = Voter::where('is_active', true)->where('election_id', $election->id)
             ->select('type', DB::raw('COUNT(*) as total'))->groupBy('type')->pluck('total', 'type');
         $voted = DB::table('voter_turnouts')
             ->join('voters', 'voters.id', '=', 'voter_turnouts.voter_id')
@@ -70,6 +70,8 @@ class ResultService
             'election' => [
                 'id' => $election->id,
                 'name' => $election->name,
+                'school_name' => $election->school_name,
+                'slug' => $election->slug,
                 'status' => $election->status,
                 'is_simulation' => $election->is_simulation,
                 'opens_at' => $election->opens_at?->toIso8601String(),

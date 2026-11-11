@@ -160,7 +160,7 @@ export default function KioskPage() {
 
     return (
         <Screen>
-            <KioskHeader title={election.name} badge="Meja Check-in" deviceName={status.data.device.name} simulation={election.is_simulation} />
+            <KioskHeader title={election.school_name ? `${election.school_name} · ${election.name}` : election.name} badge="Meja Check-in" deviceName={status.data.device.name} simulation={election.is_simulation} />
             <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col">
                 {step === 'scan' && (faceDisabled ? <CadanganForm /> : <ScanStep requireLiveness={election.require_liveness} />)}
                 {step === 'confirm' && <KonfirmasiPage />}

@@ -73,16 +73,21 @@ class ElectionService
         return $info;
     }
 
-    /** Pengaman otomatis: bila jam tutup lewat, tutup pemilihan (dipanggil scheduler tiap menit). */
-    public function autoClose(): ?Election
+    /**
+     * Pengaman otomatis (scheduler tiap menit): tutup SEMUA sesi yang jam tutupnya sudah lewat.
+     *
+     * @return Election[] sesi yang baru ditutup
+     */
+    public function autoClose(): array
     {
-        $election = Election::current();
-        if ($election && $election->status === Election::OPEN && $election->closes_at && $election->closes_at->isPast()) {
+        $closed = [];
+        $due = Election::where('status', Election::OPEN)->whereNotNull('closes_at')->where('closes_at', '<=', now())->get();
+        foreach ($due as $election) {
+            Election::useCurrent($election); // log audit tercatat pada sesi yang benar
             $this->transition($election, Election::CLOSED);
-
-            return $election;
+            $closed[] = $election;
         }
 
-        return null;
+        return $closed;
     }
 }

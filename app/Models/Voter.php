@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Voter extends Model
@@ -19,9 +20,15 @@ class Voter extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
-        'type', 'identifier', 'name', 'class_name', 'birth_date', 'distinguisher',
+        'election_id', 'type', 'identifier', 'name', 'class_name', 'birth_date', 'distinguisher',
         'is_active', 'is_simulation',
     ];
+
+    /** Sesi (sekolah) tempat pemilih ini terdaftar. */
+    public function election(): BelongsTo
+    {
+        return $this->belongsTo(Election::class);
+    }
 
     protected function casts(): array
     {

@@ -24,6 +24,7 @@ const Log = lazy(() => import('../pages/panitia/Log'));
 const Jadwal = lazy(() => import('../pages/panitia/Jadwal'));
 const UjiWajah = lazy(() => import('../pages/panitia/UjiWajah'));
 const Pengguna = lazy(() => import('../pages/panitia/Pengguna'));
+const Sesi = lazy(() => import('../pages/panitia/Sesi'));
 
 function Loading() {
     return (
@@ -40,6 +41,7 @@ export default function AppRouter() {
             <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/hasil" element={<HasilLangsung />} />
+                <Route path="/hasil/:slug" element={<HasilLangsung />} />
                 <Route path="/resi" element={<CekResi />} />
 
                 <Route path="/kiosk" element={<KioskPage />} />
@@ -63,6 +65,14 @@ export default function AppRouter() {
                     <Route path="log" element={<Log />} />
                     <Route path="jadwal" element={<Jadwal />} />
                     <Route path="uji-wajah" element={<UjiWajah />} />
+                    <Route
+                        path="sesi"
+                        element={
+                            <RequireAuth role="admin">
+                                <Sesi />
+                            </RequireAuth>
+                        }
+                    />
                     <Route
                         path="pengguna"
                         element={

@@ -56,7 +56,12 @@ class LogController extends Controller
 
     public function activity(Request $request): JsonResponse
     {
+        // Log sesi aktif; admin juga melihat aksi global (kelola pengguna, dsb.).
+        $electionId = Election::current()?->id ?? 0;
         $logs = ActivityLog::with('user:id,name')
+            ->where(fn ($q) => $request->user()->isAdmin()
+                ? $q->where('election_id', $electionId)->orWhereNull('election_id')
+                : $q->where('election_id', $electionId))
             ->when($request->query('action'), fn ($q, $a) => $q->where('action', 'like', $a.'%'))
             ->latest('id')->paginate(50);
 
@@ -76,7 +81,7 @@ class LogController extends Controller
         $election = Election::current();
 
         return AccessAttempt::query()
-            ->when($election, fn ($q) => $q->where('election_id', $election->id))
+            ->where('election_id', $election?->id ?? 0) // hanya sesi aktif, tidak pernah lintas sekolah
             ->when($request->query('method'), fn ($q, $m) => $q->where('method', $m))
             ->when($request->query('result'), fn ($q, $r) => $q->where('result', $r))
             ->when($request->query('device_id'), fn ($q, $d) => $q->where('device_id', $d))

@@ -1,7 +1,7 @@
 # PROGRESS — E-Voting OSIS "One Face One Vote"
 
 **Fase aktif: 3 (gerbang uji akurasi wajah) — menunggu model + tablet nyata + sukarelawan.**
-Terakhir diperbarui: 2026-11-10.
+Terakhir diperbarui: 2026-11-12.
 
 ## Ringkasan status per fase
 
@@ -53,9 +53,21 @@ Terakhir diperbarui: 2026-11-10.
 - **Deploy:** wajib `php artisan migrate --force` (tabel `booth_credits`, kolom `role`). Perangkat lama otomatis berperan **meja check-in**; laptop bilik harus didaftarkan baru dengan peran **Bilik suara**.
 - `scripts/loadtest.mjs` kini butuh `--tokens=<check-in>` dan `--booths=<bilik>`.
 
+## Revisi 2026-11-12 — MULTI-SEKOLAH (sesi) + branding
+
+- **Sesi = satu pemilihan untuk satu sekolah** (`elections.school_name`, `elections.slug`). Banyak sesi boleh berjalan bersamaan; masing-masing punya status, jadwal, kandidat, pemilih, wajah, tablet, ledger, dan hasil sendiri.
+- **Data per sesi:** `voters.election_id` (NISN/NIP unik **per sesi**), `kiosk_devices.election_id`, `activity_logs.election_id`. Pencocokan wajah 1:N & deteksi wajah ganda hanya di dalam sesi yang sama (cache matriks per sesi, berversi).
+- **Konteks sesi per request** (`Election::current()`): panel → header `X-Session-Id` (middleware `panitia.session`); tablet → sesi tempat perangkat didaftarkan (`kiosk.device`); di-reset tiap request API (`ResetCurrentElection`).
+- **Akses:** admin = semua sesi, membuat/menghapus sesi (menu **Sesi Sekolah**). Panitia bisa **dibatasi ke satu sekolah** (`users.election_id`, menu Pengguna) → meminta sesi lain = 403, ID pemilih/perangkat sekolah lain = 404.
+- **Publik:** `/hasil` = daftar sekolah (draf tidak tampil), `/hasil/{slug}` = hasil per sekolah; `GET /public/sessions`, `GET /public/results?session=slug` (tanpa slug: sesi yang dibuka/terbaru, kompatibel tautan lama). Beranda menampilkan "Sekolah peserta".
+- **Lainnya:** hapus sesi hanya bila belum ada check-in/suara; retensi wajah per sesi; simulasi = sesi tersendiri (tidak lagi diblokir saat sesi nyata dibuka); `election:auto-close` & `votes:seal` untuk semua sesi.
+- **Migrasi `2026_11_12_000100_multi_school_sessions`** mengisi data lama otomatis: sesi lama → "SMAN 1 Ciruas" (tautan `/hasil/sman-1-ciruas`), pemilih & tablet lama ikut. Diuji di MySQL: naik, turun (rollback), dan backfill dengan data.
+- **Branding:** "SMAN 1 Ciruas" dihapus dari header/judul/manifes (nama sekolah kini dinamis per sesi); skala `BrandLogo` diperbesar (xs h-9, sm h-11, md h-14, lg h-16, xl h-20).
+- **Dasbor:** bila API gagal kini menampilkan pesan + petunjuk (`migrate --force`, `config:cache`, log) alih-alih layar kosong. Penyebab paling mungkin error di hosting sebelumnya: migrasi `booth_credits` belum dijalankan.
+
 ## Uji yang sudah dijalankan
 
-- `php artisan test` → **81 lulus** (2026-11-11, alur check-in → bilik) (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
+- `php artisan test` → **90 lulus** (2026-11-12, multi-sekolah; termasuk `MultiSchoolTest` isolasi antar sekolah) (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
 - `npm run build` sukses (build 788 KB; runtime WASM terpisah di `public/wasm/`).
 - Uji HTTP end-to-end (login+CSRF → daftar tablet → buka → cadangan → konfirmasi → suara → replay → tolak memilih ulang).
 - Chrome headless + CDP: 360 px (beranda, hasil, resi, login, dasbor) tanpa scroll horizontal & tanpa error konsol; alur kiosk lewat klik sampai resi.

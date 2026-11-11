@@ -49,8 +49,11 @@ Artisan::command('votes:verify-ledger {--election= : ID pemilihan (bawaan: terba
 })->purpose('Verifikasi rantai hash ledger suara');
 
 Artisan::command('votes:seal {--force : Segel semua suara tertunda walau belum satu batch}', function (LedgerService $ledger) {
-    $election = Election::current();
-    $n = $election ? $ledger->seal($election, (bool) $this->option('force')) : 0;
+    // Semua sesi yang masih punya suara menunggu segel.
+    $n = 0;
+    foreach (Election::whereIn('status', [Election::OPEN, Election::CLOSED])->get() as $election) {
+        $n += $ledger->seal($election, (bool) $this->option('force'));
+    }
     $this->info("{$n} suara disegel.");
 })->purpose('Segel suara tertunda ke ledger');
 
@@ -70,16 +73,16 @@ Artisan::command('face:benchmark {--n=1800 : Jumlah template sintetis} {--runs=1
         $ids[] = $i;
         $blob .= FaceTemplate::pack(SimulationService::randomUnitVector());
     }
-    $key = FaceMatchService::CACHE_KEY.':real';
+    $svc = app(FaceMatchService::class);
+    $key = $svc->cacheKey(null);
     $previous = Cache::get($key);
     Cache::forever($key, ['ids' => $ids, 'blob' => $blob]);
 
-    $svc = app(FaceMatchService::class);
     $probe = SimulationService::randomUnitVector();
     $times = [];
     for ($r = 0; $r < $runs; $r++) {
         $t0 = hrtime(true);
-        $svc->match($probe, null, false);
+        $svc->match($probe, null, null);
         $times[] = (hrtime(true) - $t0) / 1e6;
     }
 
@@ -140,9 +143,8 @@ Artisan::command('panitia:create-admin {email} {name=Administrator}', function (
 })->purpose('Buat/ubah akun admin');
 
 Artisan::command('election:auto-close', function (ElectionService $svc) {
-    $closed = $svc->autoClose();
-    if ($closed) {
-        $this->info("Pemilihan #{$closed->id} ditutup otomatis.");
+    foreach ($svc->autoClose() as $closed) {
+        $this->info("Sesi #{$closed->id} ({$closed->label()}) ditutup otomatis.");
     }
 })->purpose('Tutup otomatis bila jam tutup terlewati');
 

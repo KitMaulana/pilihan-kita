@@ -17,7 +17,13 @@ class KioskDevice extends Model
 
     protected $attributes = ['role' => self::CHECKIN];
 
-    protected $fillable = ['name', 'role', 'token_hash', 'is_active', 'last_seen_at', 'last_ip', 'revoked_at', 'created_by'];
+    protected $fillable = ['election_id', 'name', 'role', 'token_hash', 'is_active', 'last_seen_at', 'last_ip', 'revoked_at', 'created_by'];
+
+    /** Sesi (sekolah) tempat perangkat ini bertugas. */
+    public function election(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Election::class);
+    }
 
     protected $hidden = ['token_hash'];
 
@@ -40,10 +46,11 @@ class KioskDevice extends Model
      *
      * @return array{0: self, 1: string}
      */
-    public static function register(string $name, ?int $userId = null, string $role = self::CHECKIN): array
+    public static function register(string $name, ?int $userId = null, string $role = self::CHECKIN, ?int $electionId = null): array
     {
         $plain = 'kd_'.Str::random(48);
         $device = static::create([
+            'election_id' => $electionId,
             'name' => $name,
             'role' => $role,
             'token_hash' => static::hashToken($plain),

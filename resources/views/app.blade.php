@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#07173d">
-    <meta name="description" content="Pilihan Kita × CiptaKita.id — E-Voting OSIS One Face One Vote SMAN 1 Ciruas">
+    <meta name="description" content="Pilihan Kita × CiptaKita.id — E-Voting OSIS One Face One Vote">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name') }} — E-Voting OSIS SMAN 1 Ciruas</title>
+    <title>{{ config('app.name') }} — E-Voting OSIS</title>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/ciptakita-logo.png" type="image/png">
     <link rel="apple-touch-icon" href="/ciptakita-logo.png">

@@ -9,12 +9,15 @@ use App\Http\Resources\ElectionResource;
 use App\Models\Election;
 use App\Services\AuditService;
 use App\Services\ElectionService;
+use App\Services\FaceMatchService;
 use App\Services\LedgerService;
 use App\Services\ResultService;
 use App\Services\VoteResetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ElectionController extends Controller
@@ -26,24 +29,88 @@ class ElectionController extends Controller
         return response()->json(['data' => $election ? new ElectionResource($election) : null]);
     }
 
+    /**
+     * Daftar sesi (sekolah) yang boleh diakses akun ini, untuk pemilih sesi di panel.
+     * Panitia yang dibatasi hanya melihat sesinya sendiri.
+     */
+    public function sessions(Request $request): JsonResponse
+    {
+        $only = $request->user()->restrictedElectionId();
+        $current = Election::current();
+
+        $rows = Election::query()
+            ->when($only !== null, fn ($q) => $q->whereKey($only))
+            ->withCount(['voters', 'votes'])
+            ->orderByDesc('id')->get()
+            ->map(fn (Election $e) => [
+                'id' => $e->id,
+                'name' => $e->name,
+                'school_name' => $e->school_name,
+                'slug' => $e->slug,
+                'label' => $e->label(),
+                'status' => $e->status,
+                'is_simulation' => $e->is_simulation,
+                'is_voting_open' => $e->isVotingOpen(),
+                'voters_count' => $e->voters_count,
+                'votes_count' => $e->votes_count,
+                'public_url' => '/hasil/'.$e->slug,
+            ]);
+
+        return response()->json([
+            'data' => $rows,
+            'current_id' => $current?->id,
+            'restricted' => $only !== null,
+        ]);
+    }
+
+    /** Admin: buat SESI baru (satu sekolah, satu pemilihan). Boleh berjalan bersamaan dengan sesi lain. */
     public function store(Request $request, AuditService $audit): JsonResponse
     {
-        $request->validate(['name' => ['required', 'string', 'max:150']]);
-
-        $current = Election::current();
-        $closedEmpty = $current && $current->status === Election::CLOSED && ! $current->votes()->exists();
-        if ($current && ! $current->is_simulation && $current->status !== Election::PUBLISHED && ! $closedEmpty) {
-            throw ValidationException::withMessages(['name' => 'Masih ada pemilihan yang belum ditutup/dipublikasikan.']);
-        }
+        $data = $request->validate([
+            'school_name' => ['required', 'string', 'max:150'],
+            'name' => ['required', 'string', 'max:150'],
+        ], [
+            'school_name.required' => 'Nama sekolah wajib diisi.',
+            'name.required' => 'Nama pemilihan wajib diisi.',
+        ]);
 
         $election = Election::create([
-            'name' => $request->input('name'),
+            'school_name' => trim($data['school_name']),
+            'name' => trim($data['name']),
+            'slug' => Election::makeSlug($data['school_name']),
             'status' => Election::DRAFT,
             'settings' => Election::DEFAULT_SETTINGS,
         ]);
-        $audit->log('election.created', $election, ['name' => $election->name]);
+        Election::useCurrent($election);
+        $audit->log('election.created', $election, ['name' => $election->name, 'school' => $election->school_name]);
 
         return response()->json(['data' => new ElectionResource($election)], 201);
+    }
+
+    /**
+     * Admin: hapus sesi yang sedang dipilih. Hanya bila BELUM ada check-in/suara (mis. salah buat).
+     * Menghapus juga kandidat & daftar pemilih sesi itu (beserta template wajahnya).
+     */
+    public function destroy(Request $request, AuditService $audit, FaceMatchService $matcher): JsonResponse
+    {
+        $election = Election::current() ?? abort(404, 'Belum ada sesi.');
+        $request->validate(['confirm' => ['required', 'in:HAPUS SESI']], ['confirm.in' => 'Ketik "HAPUS SESI" untuk mengonfirmasi.', 'confirm.required' => 'Ketik "HAPUS SESI" untuk mengonfirmasi.']);
+
+        if ($election->votes()->exists() || DB::table('voter_turnouts')->where('election_id', $election->id)->exists()) {
+            throw ValidationException::withMessages(['confirm' => 'Sesi yang sudah memiliki check-in atau suara tidak dapat dihapus. Gunakan Reset suara terlebih dahulu bila ini uji coba.']);
+        }
+
+        $audit->log('election.deleted', $election, ['name' => $election->name, 'school' => $election->school_name]);
+        DB::transaction(function () use ($election) {
+            foreach ($election->candidates()->whereNotNull('photo_path')->pluck('photo_path') as $path) {
+                Storage::disk('public')->delete($path);
+            }
+            DB::table('access_attempts')->where('election_id', $election->id)->delete();
+            $election->delete(); // cascade: kandidat, pemilih (+ wajah), tiket, antrean bilik
+        });
+        $matcher->flush();
+
+        return response()->json(['message' => "Sesi {$election->label()} dihapus."]);
     }
 
     public function update(ElectionUpdateRequest $request, AuditService $audit, ResultService $results): ElectionResource

@@ -49,7 +49,7 @@ export default function LoginPage() {
                             Portal Panitia Pemilihan
                         </div>
                         <h1 className="mt-2.5 text-2xl font-extrabold tracking-tight text-slate-900">Masuk ke Panel Kontrol</h1>
-                        <p className="mt-1 text-sm text-slate-500">Pilihan Kita · E-Voting OSIS SMAN 1 Ciruas</p>
+                        <p className="mt-1 text-sm text-slate-500">Pilihan Kita · E-Voting OSIS</p>
                     </div>
 
                     <div className="mt-5 space-y-4">

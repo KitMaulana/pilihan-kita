@@ -22,6 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'election_id',
         'is_active',
     ];
 
@@ -42,5 +43,24 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    /** Panitia yang dibatasi ke satu sesi (sekolah). Admin selalu bisa mengakses semua sesi. */
+    public function election(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Election::class);
+    }
+
+    /** Sesi yang boleh diakses akun ini: null = semua, atau satu id sesi. */
+    public function restrictedElectionId(): ?int
+    {
+        return $this->isAdmin() ? null : ($this->election_id ? (int) $this->election_id : null);
+    }
+
+    public function canAccessElection(?Election $election): bool
+    {
+        $only = $this->restrictedElectionId();
+
+        return $election !== null && ($only === null || $only === $election->id);
     }
 }

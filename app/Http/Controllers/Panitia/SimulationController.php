@@ -7,7 +7,6 @@ use App\Models\Election;
 use App\Services\SimulationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class SimulationController extends Controller
 {
@@ -18,14 +17,13 @@ class SimulationController extends Controller
             'candidates' => ['sometimes', 'integer', 'between:2,5'],
         ]);
 
+        // Multi-sekolah: simulasi = sesi tersendiri, terpisah dari sesi nyata yang mungkin sedang berjalan.
         $current = Election::current();
-        if ($current && ! $current->is_simulation && $current->status === Election::OPEN) {
-            throw ValidationException::withMessages(['voters' => 'Tidak bisa membuat simulasi saat pemilihan nyata sedang dibuka.']);
-        }
+        $school = $current && ! $current->is_simulation ? $current->school_name : null;
 
         // Simulasi dari panel: tanpa wajah (vektor acak tidak berguna untuk tablet sungguhan);
         // gladi dilakukan lewat jalur cadangan atau dengan mendaftarkan wajah relawan ke pemilih simulasi.
-        $result = $sim->create($request->integer('voters'), $request->integer('candidates', 3), withFaces: false);
+        $result = $sim->create($request->integer('voters'), $request->integer('candidates', 3), withFaces: false, school: $school);
 
         return response()->json([
             'election_id' => $result['election']->id,

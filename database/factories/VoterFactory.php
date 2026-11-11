@@ -13,6 +13,8 @@ class VoterFactory extends Factory
     public function definition(): array
     {
         return [
+            // Bawaan: sesi (sekolah) terbaru — tes membuat sesi lebih dulu.
+            'election_id' => fn () => \App\Models\Election::query()->latest('id')->value('id'),
             'type' => Voter::STUDENT,
             'identifier' => (string) fake()->unique()->numerify('00########'),
             'name' => fake()->name(),

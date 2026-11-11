@@ -8,16 +8,48 @@ use App\Models\Election;
 use App\Models\Vote;
 use App\Services\ResultService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PublicController extends Controller
 {
-    public function results(ResultService $results): JsonResponse
+    /**
+     * Daftar sesi (sekolah) untuk halaman publik. Hanya data umum: nama sekolah & pemilihan, status,
+     * angka partisipasi agregat. Sesi draf tidak ditampilkan.
+     */
+    public function sessions(): JsonResponse
     {
-        $election = Election::current();
+        $rows = Election::query()
+            ->where('status', '!=', Election::DRAFT)
+            ->orderByRaw("CASE status WHEN 'open' THEN 0 WHEN 'closed' THEN 1 ELSE 2 END")
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (Election $e) => [
+                'slug' => $e->slug,
+                'school_name' => $e->school_name,
+                'name' => $e->name,
+                'status' => $e->status,
+                'is_voting_open' => $e->isVotingOpen(),
+                'is_simulation' => $e->is_simulation,
+                'opens_at' => $e->opens_at?->toIso8601String(),
+                'closes_at' => $e->closes_at?->toIso8601String(),
+            ]);
+
+        return response()->json(['data' => $rows])->header('Cache-Control', 'public, max-age=15');
+    }
+
+    /** Hasil satu sesi: ?session={slug}. Tanpa slug → sesi yang sedang dibuka / terbaru (kompatibel tautan lama). */
+    public function results(Request $request, ResultService $results): JsonResponse
+    {
+        $slug = (string) $request->query('session', '');
+        $election = $slug !== ''
+            ? Election::where('slug', $slug)->where('status', '!=', Election::DRAFT)->first()
+            : (Election::where('status', Election::OPEN)->orderByDesc('id')->first()
+                ?? Election::where('status', '!=', Election::DRAFT)->orderByDesc('id')->first());
+
         if (! $election) {
-            return response()->json(['election' => null, 'message' => 'Belum ada pemilihan.'])
+            return response()->json(['election' => null, 'message' => $slug !== '' ? 'Sesi tidak ditemukan.' : 'Belum ada pemilihan.'], $slug !== '' ? 404 : 200)
                 ->header('Cache-Control', 'public, max-age=5');
         }
 

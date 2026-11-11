@@ -36,6 +36,7 @@ class PanitiaPanelTest extends TestCase
 
     public function test_registrasi_perangkat_menampilkan_token_sekali(): void
     {
+        $session = $this->schoolSession();
         $this->actingAs($this->panitia());
 
         $res = $this->postJson('/api/v1/panitia/devices', ['name' => 'Tablet Aula'])->assertCreated();
@@ -104,11 +105,12 @@ class PanitiaPanelTest extends TestCase
         $this->assertNull(Election::find($sim['election']->id));
     }
 
-    public function test_pemilih_simulasi_tidak_bisa_memilih_di_pemilihan_nyata(): void
+    public function test_pemilih_sekolah_lain_tidak_bisa_checkin_di_tablet_sekolah_ini(): void
     {
-        $this->openElection();
+        $other = $this->schoolSession('SMA Lain', Election::OPEN);
+        Voter::factory()->create(['identifier' => '9900000001', 'election_id' => $other->id]);
+        $this->openElection(); // sesi tablet (terbaru)
         [, $h] = $this->device();
-        Voter::factory()->create(['identifier' => '9900000001', 'is_simulation' => true]);
 
         $this->postJson('/api/v1/kiosk/fallback', ['type' => 'student', 'identifier' => '9900000001', 'birth_date' => '2008-05-17'], $h)
             ->assertStatus(422);

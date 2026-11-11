@@ -32,7 +32,8 @@ class KioskAccessService
             throw new KioskException('liveness_failed', 'Verifikasi gerakan tidak berhasil. Silakan coba lagi atau gunakan jalur cadangan.');
         }
 
-        $result = $this->matcher->match($embedding, null, (bool) $election->is_simulation);
+        // 1:N hanya terhadap pemilih sesi (sekolah) tablet ini.
+        $result = $this->matcher->match($embedding, null, $election->id);
         $decision = $this->matcher->decide(
             $result,
             (float) $election->setting('match_threshold'),
@@ -61,7 +62,7 @@ class KioskAccessService
         $identifier = isset($input['identifier']) ? preg_replace('/[\s.\-]/', '', (string) $input['identifier']) : null;
         $generic = 'Data tidak cocok. Periksa kembali isian Anda.';
 
-        $base = Voter::where('type', $type)->where('is_simulation', (bool) $election->is_simulation);
+        $base = Voter::where('type', $type)->where('election_id', $election->id);
 
         if ($identifier) {
             $voter = (clone $base)->where('identifier', $identifier)->first();
@@ -191,7 +192,7 @@ class KioskAccessService
 
     private function admit(Election $election, KioskDevice $device, ?Voter $voter, string $method, array $scores = []): array
     {
-        if (! $voter || ! $voter->is_active || $voter->is_simulation !== (bool) $election->is_simulation) {
+        if (! $voter || ! $voter->is_active || $voter->election_id !== $election->id) {
             $this->attempt($election, $device, $voter?->id, $method, 'rejected', 'Pemilih tidak aktif / bukan peserta pemilihan ini', false, $scores);
             throw new KioskException('not_eligible', 'Anda tidak terdaftar sebagai pemilih aktif. Hubungi panitia.', 403);
         }

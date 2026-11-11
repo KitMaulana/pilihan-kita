@@ -28,6 +28,7 @@ class KioskController extends Controller
             'device' => ['name' => $this->device($request)->name, 'role' => $this->device($request)->role],
             'election' => $election ? [
                 'name' => $election->name,
+                'school_name' => $election->school_name,
                 'status' => $election->status,
                 'is_simulation' => $election->is_simulation,
                 'is_voting_open' => $election->isVotingOpen(),

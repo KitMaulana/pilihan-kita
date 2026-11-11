@@ -20,11 +20,12 @@ class SimulationService
     /**
      * @return array{election: Election, voters: int, embeddings: array<int, array{identifier: string, birth_date: string, embedding: float[]}>}
      */
-    public function create(int $voters = 50, int $candidates = 3, bool $withFaces = true, int $minutes = 120): array
+    public function create(int $voters = 50, int $candidates = 3, bool $withFaces = true, int $minutes = 120, ?string $school = null): array
     {
-        $election = DB::transaction(function () use ($candidates, $minutes) {
+        $election = DB::transaction(function () use ($candidates, $minutes, $school) {
             $election = Election::create([
                 'name' => 'SIMULASI Pemilihan Ketua OSIS',
+                'school_name' => $school ? "{$school} (simulasi)" : 'Simulasi',
                 'status' => Election::OPEN,
                 'opens_at' => now()->subMinute(),
                 'closes_at' => now()->addMinutes($minutes),
@@ -47,7 +48,7 @@ class SimulationService
         });
 
         $exported = [];
-        $base = Voter::where('is_simulation', true)->count();
+        $base = 0; // NISN unik per sesi → nomor simulasi boleh mulai dari 1 di setiap sesi simulasi
         for ($i = 1; $i <= $voters; $i++) {
             $n = $base + $i;
             $isTeacher = $i % 20 === 0;
@@ -58,6 +59,7 @@ class SimulationService
                 'class_name' => $isTeacher ? null : 'SIM-'.(($n % 10) + 1),
                 'birth_date' => '2008-01-01',
                 'is_simulation' => true,
+                'election_id' => $election->id,
             ]);
 
             if ($withFaces) {

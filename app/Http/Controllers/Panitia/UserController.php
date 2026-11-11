@@ -14,12 +14,16 @@ class UserController extends Controller
 {
     public function index(): AnonymousResourceCollection
     {
-        return UserResource::collection(User::orderBy('role')->orderBy('name')->get());
+        return UserResource::collection(User::with('election')->orderBy('role')->orderBy('name')->get());
     }
 
     public function store(UserStoreRequest $request, AuditService $audit): UserResource
     {
-        $user = User::create($request->validated());
+        $data = $request->validated();
+        if (($data['role'] ?? null) === User::ROLE_ADMIN) {
+            $data['election_id'] = null; // admin selalu mengakses semua sesi
+        }
+        $user = User::create($data);
         $audit->log('user.created', $user, ['email' => $user->email, 'role' => $user->role]);
 
         return new UserResource($user);
@@ -33,6 +37,9 @@ class UserController extends Controller
             throw ValidationException::withMessages(['role' => 'Anda tidak dapat menonaktifkan atau menurunkan peran akun sendiri.']);
         }
 
+        if (($data['role'] ?? $user->role) === User::ROLE_ADMIN) {
+            $data['election_id'] = null;
+        }
         $user->fill($data)->save();
         $audit->log('user.updated', $user, ['fields' => array_keys(array_diff_key($data, ['password' => 1])), 'password_changed' => isset($data['password'])]);
 

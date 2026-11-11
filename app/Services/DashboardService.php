@@ -17,8 +17,7 @@ class DashboardService
 
     public function summary(?Election $election): array
     {
-        $sim = (bool) $election?->is_simulation;
-        $voters = Voter::where('is_simulation', $sim);
+        $voters = Voter::where('election_id', $election?->id ?? 0);
 
         $totalVoters = (clone $voters)->where('is_active', true)->count();
         $withFace = FaceTemplate::whereIn('voter_id', (clone $voters)->where('is_active', true)->select('id'))->count();
@@ -27,6 +26,8 @@ class DashboardService
             'election' => $election ? [
                 'id' => $election->id,
                 'name' => $election->name,
+                'school_name' => $election->school_name,
+                'slug' => $election->slug,
                 'status' => $election->status,
                 'is_simulation' => $election->is_simulation,
                 'is_voting_open' => $election->isVotingOpen(),
@@ -38,21 +39,22 @@ class DashboardService
                 'with_face' => $withFace,
                 'face_percent' => $totalVoters ? round($withFace * 100 / $totalVoters, 1) : 0,
                 'locked' => (clone $voters)->whereNotNull('locked_at')->count(),
-                'duplicates_flagged' => FaceTemplate::whereNotNull('duplicate_of_voter_id')->count(),
+                'duplicates_flagged' => FaceTemplate::whereNotNull('duplicate_of_voter_id')->whereIn('voter_id', (clone $voters)->select('id'))->count(),
             ],
             'results' => $election ? $this->results->snapshot($election) : null,
             // Antrean bilik: sudah check-in tapi belum memilih (tidak hangus oleh waktu).
             'booth' => $election ? [
                 'waiting' => BoothCredit::waiting($election->id)->count(),
             ] : null,
-            'devices' => $this->devices(),
+            'devices' => $this->devices($election),
             'anomalies' => $election ? $this->anomalies($election) : [],
         ];
     }
 
-    public function devices(): array
+    /** Perangkat milik sesi (sekolah) ini saja. */
+    public function devices(?Election $election): array
     {
-        return KioskDevice::orderBy('name')->get()->map(fn ($d) => [
+        return KioskDevice::where('election_id', $election?->id ?? 0)->orderBy('name')->get()->map(fn ($d) => [
             'id' => $d->id,
             'name' => $d->name,
             'role' => $d->role,
@@ -84,7 +86,7 @@ class DashboardService
                 DB::raw("SUM(CASE WHEN result = 'rejected' AND method = 'face' THEN 1 ELSE 0 END) as rejected"))
             ->groupBy('device_id')->get();
 
-        $names = KioskDevice::pluck('name', 'id');
+        $names = KioskDevice::where('election_id', $election->id)->pluck('name', 'id');
 
         foreach ($perDevice as $row) {
             $name = $names[$row->device_id] ?? 'Perangkat tidak dikenal';
@@ -112,7 +114,7 @@ class DashboardService
             }
         }
 
-        $locked = Voter::where('is_simulation', (bool) $election->is_simulation)->whereNotNull('locked_at')->count();
+        $locked = Voter::where('election_id', $election->id)->whereNotNull('locked_at')->count();
         if ($locked > 0) {
             $items[] = ['level' => 'info', 'type' => 'locked', 'message' => "{$locked} pemilih terkunci menunggu buka-kunci panitia."];
         }

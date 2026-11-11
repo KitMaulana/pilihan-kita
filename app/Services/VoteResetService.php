@@ -44,7 +44,7 @@ class VoteResetService
                 $attempts = DB::table('access_attempts')->where('election_id', $locked->id)->delete();
                 // Buka kunci & nolkan hitungan salah cadangan agar uji coba bisa diulang bersih.
                 DB::table('voters')->where(fn ($q) => $q->whereNotNull('locked_at')->orWhere('failed_attempts', '>', 0))
-                    ->where('is_simulation', $locked->is_simulation)
+                    ->where('election_id', $locked->id)
                     ->update(['locked_at' => null, 'failed_attempts' => 0]);
             }
 

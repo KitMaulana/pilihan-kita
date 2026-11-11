@@ -7,12 +7,14 @@ import {
     IconFaceScan,
     IconLock,
     IconShieldCheck,
+    IconSchool,
     IconSparkles,
     IconTicket,
     IconUserCheck,
     IconVoteBox,
 } from '../../components/Icons';
 import PublicShell from './PublicShell';
+import { usePublicSessions } from './HasilLangsung';
 
 const STEPS = [
     {
@@ -60,6 +62,42 @@ const PRIVACY_ITEMS = [
     },
 ];
 
+/** Sekolah yang pemilihannya sedang/sudah berjalan — tautan ke hasil masing-masing. */
+function SchoolsSection() {
+    const { data } = usePublicSessions();
+    if (!data?.length) return null;
+    return (
+        <section className="mt-10" aria-labelledby="schools-title">
+            <div className="mb-4 flex items-end justify-between gap-3">
+                <div>
+                    <h2 id="schools-title" className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Sekolah peserta</h2>
+                    <p className="text-sm text-slate-500">Pilih sekolah untuk melihat hitung langsung.</p>
+                </div>
+            </div>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {data.map((s) => (
+                    <li key={s.slug}>
+                        <Link to={`/hasil/${s.slug}`} className="card group flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-lg">
+                            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                                <IconSchool className="size-5.5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate font-extrabold text-slate-900">{s.school_name}</span>
+                                <span className="block truncate text-xs text-slate-500">
+                                    {s.is_voting_open ? 'Sedang berlangsung' : s.status === 'published' ? 'Hasil akhir' : 'Ditutup'}
+                                    {s.is_simulation ? ' · simulasi' : ''}
+                                </span>
+                            </span>
+                            {s.is_voting_open && <span className="size-2.5 shrink-0 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />}
+                            <IconArrowRight className="size-4 shrink-0 text-brand-700 transition group-hover:translate-x-0.5" />
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+}
+
 export default function HomePage() {
     return (
         <PublicShell>
@@ -74,7 +112,7 @@ export default function HomePage() {
                         <div className="inline-flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur-md">
                             <BrandLogo variant="full" size="xs" surface="pill" />
                             <span className="text-xs font-bold tracking-wider text-brand-100 uppercase">
-                                OSIS SMAN 1 Ciruas
+                                E-Voting OSIS
                             </span>
                         </div>
 
@@ -156,6 +194,8 @@ export default function HomePage() {
                     </div>
                 </div>
             </section>
+
+            <SchoolsSection />
 
             {/* Alur 3 Langkah */}
             <section className="mt-8 sm:mt-10">

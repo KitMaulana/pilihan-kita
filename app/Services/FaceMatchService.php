@@ -20,10 +20,10 @@ class FaceMatchService
      * @param  float[]  $probe  vektor 512 ternormalisasi
      * @return array{voter_id: ?int, s1: float, s2: float, second_voter_id: ?int, count: int, ms: float}
      */
-    public function match(array $probe, ?int $excludeVoterId = null, ?bool $simulation = null): array
+    public function match(array $probe, ?int $excludeVoterId = null, ?int $electionId = null): array
     {
         $t0 = hrtime(true);
-        $matrix = $this->matrix($simulation);
+        $matrix = $this->matrix($electionId);
         $ids = $matrix['ids'];
         $n = count($ids);
 
@@ -96,20 +96,20 @@ class FaceMatchService
     }
 
     /**
-     * @param  bool|null  $simulation  null = semua, true = hanya data simulasi, false = hanya data nyata
+     * Matriks template aktif. Multi-sekolah: $electionId membatasi ke pemilih satu sesi
+     * (pencocokan 1:N hanya terhadap sekolah yang sama); null = semua sesi (alat benchmark).
+     *
      * @return array{ids: int[], blob: string}
      */
-    public function matrix(?bool $simulation = null): array
+    public function matrix(?int $electionId = null): array
     {
-        $scope = $simulation === null ? 'all' : ($simulation ? 'sim' : 'real');
-
-        return Cache::rememberForever(self::CACHE_KEY.':'.$scope, function () use ($simulation) {
+        return Cache::rememberForever($this->cacheKey($electionId), function () use ($electionId) {
             $ids = [];
             $blob = '';
             DB::table('face_templates')
                 ->join('voters', 'voters.id', '=', 'face_templates.voter_id')
                 ->where('voters.is_active', true)
-                ->when($simulation !== null, fn ($q) => $q->where('voters.is_simulation', $simulation))
+                ->when($electionId !== null, fn ($q) => $q->where('voters.election_id', $electionId))
                 ->orderBy('face_templates.voter_id')
                 ->select('face_templates.voter_id', 'face_templates.embedding')
                 ->chunk(500, function ($rows) use (&$ids, &$blob) {
@@ -126,11 +126,17 @@ class FaceMatchService
         });
     }
 
+    /** Kunci cache berversi: flush() cukup menaikkan versi sehingga cache semua sesi langsung basi. */
+    public function cacheKey(?int $electionId = null): string
+    {
+        $version = (int) Cache::get(self::CACHE_KEY.':version', 1);
+
+        return self::CACHE_KEY.':v'.$version.':'.($electionId === null ? 'all' : 'e'.$electionId);
+    }
+
     public function flush(): void
     {
-        foreach (['all', 'sim', 'real'] as $scope) {
-            Cache::forget(self::CACHE_KEY.':'.$scope);
-        }
+        Cache::forever(self::CACHE_KEY.':version', (int) Cache::get(self::CACHE_KEY.':version', 1) + 1);
     }
 
     /**

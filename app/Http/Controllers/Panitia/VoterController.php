@@ -24,11 +24,11 @@ class VoterController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $sim = (bool) Election::current()?->is_simulation;
+        $election = Election::current();
 
         $voters = Voter::query()
             ->with('faceTemplate')
-            ->where('is_simulation', $request->boolean('simulation', $sim))
+            ->where('election_id', $election?->id ?? 0) // hanya pemilih sesi (sekolah) aktif
             ->search($request->query('q'))
             ->when($request->query('type'), fn ($q, $t) => $q->where('type', $t))
             ->when($request->query('class_name'), fn ($q, $c) => $q->where('class_name', $c))
@@ -48,7 +48,7 @@ class VoterController extends Controller
     public function classes(): JsonResponse
     {
         return response()->json([
-            'data' => Voter::where('type', Voter::STUDENT)->where('is_simulation', false)
+            'data' => Voter::where('type', Voter::STUDENT)->where('election_id', Election::current()?->id ?? 0)
                 ->whereNotNull('class_name')->distinct()->orderBy('class_name')->pluck('class_name'),
         ]);
     }
@@ -69,6 +69,7 @@ class VoterController extends Controller
             $result = $import->preview(
                 (string) file_get_contents($request->file('file')->getRealPath()),
                 $request->input('type'),
+                $this->election(),
             );
         } catch (InvalidArgumentException $e) {
             throw ValidationException::withMessages(['file' => $e->getMessage()]);
@@ -82,7 +83,7 @@ class VoterController extends Controller
         $request->validate(['token' => ['required', 'uuid']]);
 
         try {
-            $result = $import->commit($request->input('token'));
+            $result = $import->commit($request->input('token'), $this->election());
         } catch (InvalidArgumentException $e) {
             throw ValidationException::withMessages(['token' => $e->getMessage()]);
         }
@@ -95,8 +96,9 @@ class VoterController extends Controller
     /** Tambah satu pemilih (input manual). Ikut mode simulasi bila pemilihan aktif adalah simulasi. */
     public function store(VoterStoreRequest $request, VoterImportService $import, AuditService $audit): JsonResponse
     {
-        $simulation = (bool) Election::current()?->is_simulation;
-        $voter = $import->createOne($request->validated(), $simulation);
+        $election = $this->election();
+        $simulation = (bool) $election->is_simulation;
+        $voter = $import->createOne($request->validated(), $election);
         $audit->log('voter.created', $voter, ['name' => $voter->name, 'type' => $voter->type, 'simulation' => $simulation]);
 
         return (new VoterResource($voter->load('faceTemplate')))
@@ -106,6 +108,7 @@ class VoterController extends Controller
 
     public function update(VoterUpdateRequest $request, Voter $voter, AuditService $audit, FaceMatchService $matcher): VoterResource
     {
+        $this->ensureInSession($voter);
         $before = $voter->only(array_keys($request->validated()));
         $voter->fill($request->validated())->save();
 
@@ -119,6 +122,7 @@ class VoterController extends Controller
 
     public function unlock(Voter $voter, AuditService $audit): VoterResource
     {
+        $this->ensureInSession($voter);
         DB::table('voters')->where('id', $voter->id)->update(['locked_at' => null, 'failed_attempts' => 0]);
         $audit->log('voter.unlocked', $voter);
 
@@ -127,6 +131,7 @@ class VoterController extends Controller
 
     public function destroy(Voter $voter, AuditService $audit, FaceMatchService $matcher): JsonResponse
     {
+        $this->ensureInSession($voter);
         if ($voter->has_voted) {
             throw ValidationException::withMessages(['voter' => 'Pemilih yang sudah memilih tidak dapat dihapus.']);
         }
@@ -135,5 +140,17 @@ class VoterController extends Controller
         $matcher->flush();
 
         return response()->json(['message' => 'Pemilih dihapus.']);
+    }
+
+    /** Sesi aktif panel; impor/tambah pemilih butuh sesi. */
+    private function election(): Election
+    {
+        return Election::current() ?? throw ValidationException::withMessages(['session' => 'Buat sesi pemilihan terlebih dahulu di menu Sesi Sekolah.']);
+    }
+
+    /** Pemilih sesi lain diperlakukan seperti tidak ada (mencegah akses lintas sekolah). */
+    private function ensureInSession(Voter $voter): void
+    {
+        abort_unless($voter->election_id !== null && $voter->election_id === Election::current()?->id, 404);
     }
 }

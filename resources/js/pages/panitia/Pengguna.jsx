@@ -3,13 +3,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../../lib/api';
 import { IconShieldCheck } from '../../components/Icons';
 import { Alert, Badge, Field, Modal, Spinner, toast } from '../../components/ui';
+import { useSessions } from '../../components/SessionSwitcher';
 
 function UserForm({ user, onClose }) {
     const qc = useQueryClient();
-    const [form, setForm] = useState({ name: user?.name || '', username: user?.username || '', email: user?.email || '', password: '', role: user?.role || 'panitia', is_active: user?.is_active ?? true });
+    const [form, setForm] = useState({ name: user?.name || '', username: user?.username || '', email: user?.email || '', password: '', role: user?.role || 'panitia', election_id: user?.election_id ?? '', is_active: user?.is_active ?? true });
+    const sessions = useSessions();
     const [error, setError] = useState(null);
     const save = useMutation({
-        mutationFn: () => (user ? api.patch(`/panitia/users/${user.id}`, form) : api.post('/panitia/users', form)),
+        mutationFn: () => {
+            const payload = { ...form, election_id: form.role === 'admin' || form.election_id === '' ? null : Number(form.election_id) };
+            return user ? api.patch(`/panitia/users/${user.id}`, payload) : api.post('/panitia/users', payload);
+        },
         onSuccess: () => {
             toast.success('Akun disimpan.');
             qc.invalidateQueries({ queryKey: ['users'] });
@@ -49,6 +54,21 @@ function UserForm({ user, onClose }) {
                         </select>
                     )}
                 </Field>
+                {form.role === 'panitia' && (
+                    <Field label="Akses sesi sekolah" hint="Panitia yang dibatasi hanya dapat melihat & mengelola data sekolahnya sendiri.">
+                        {(id) => (
+                            <select id={id} className="input" value={form.election_id} onChange={set('election_id')}>
+                                <option value="">Semua sesi sekolah</option>
+                                {sessions.data?.data.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.label}
+                                        {s.is_simulation ? ' (simulasi)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </Field>
+                )}
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                     <input type="checkbox" className="size-5 rounded accent-brand-700" checked={form.is_active} onChange={set('is_active')} /> Aktif
                 </label>
@@ -85,6 +105,7 @@ export default function Pengguna() {
                                     <th>Username</th>
                                     <th>Email</th>
                                     <th>Peran</th>
+                                    <th>Akses sesi</th>
                                     <th>Status</th>
                                     <th />
                                 </tr>
@@ -98,6 +119,7 @@ export default function Pengguna() {
                                         <td>
                                             <Badge color={u.role === 'admin' ? 'blue' : 'gray'}>{u.role}</Badge>
                                         </td>
+                                        <td className="text-sm">{u.role === 'admin' || !u.election_label ? <span className="text-slate-500">Semua sekolah</span> : u.election_label}</td>
                                         <td>{u.is_active ? <Badge color="green" dot>Aktif</Badge> : <Badge>Nonaktif</Badge>}</td>
                                         <td className="text-right">
                                             <button className="btn-ghost btn-sm" onClick={() => setEditing(u)}>

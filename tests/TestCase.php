@@ -37,6 +37,12 @@ abstract class TestCase extends BaseTestCase
         return User::factory()->create();
     }
 
+    /** Sesi (sekolah) draf — konteks wajib untuk panel panitia multi-sekolah. */
+    protected function schoolSession(string $school = 'SMAN Uji', string $status = Election::DRAFT, bool $simulation = false): Election
+    {
+        return Election::create(['name' => 'Pemilihan Ketua OSIS', 'school_name' => $school, 'status' => $status, 'is_simulation' => $simulation, 'settings' => Election::DEFAULT_SETTINGS]);
+    }
+
     protected function openElection(array $settings = [], int $candidates = 2): Election
     {
         $election = Election::create([
@@ -56,7 +62,8 @@ abstract class TestCase extends BaseTestCase
     /** @return array{0: KioskDevice, 1: array<string,string>} */
     protected function device(string $name = 'Tablet 1', string $role = KioskDevice::CHECKIN): array
     {
-        [$device, $token] = KioskDevice::register($name, null, $role);
+        // Perangkat didaftarkan ke sesi (sekolah) terbaru — sama seperti panel yang memilih sesi aktif.
+        [$device, $token] = KioskDevice::register($name, null, $role, \App\Models\Election::query()->latest('id')->value('id'));
 
         return [$device, ['X-Device-Token' => $token, 'Accept' => 'application/json']];
     }

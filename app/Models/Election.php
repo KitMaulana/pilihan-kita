@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class Election extends Model
 {
@@ -30,7 +31,7 @@ class Election extends Model
     ];
 
     protected $fillable = [
-        'name', 'status', 'opens_at', 'closes_at', 'settings', 'is_simulation',
+        'name', 'school_name', 'slug', 'status', 'opens_at', 'closes_at', 'settings', 'is_simulation',
         'ledger_head_hash', 'ledger_count', 'closed_at', 'published_at',
     ];
 
@@ -57,10 +58,69 @@ class Election extends Model
         return $this->hasMany(Vote::class);
     }
 
-    /** Pemilihan aktif = yang terbaru (simulasi atau nyata). */
+    /** Kunci kontainer untuk sesi aktif pada request berjalan (lihat useCurrent). */
+    public const CONTAINER_KEY = 'election.current';
+
+    /**
+     * SESI AKTIF pada request ini.
+     *  - panel panitia : sesi yang dipilih (header X-Session-Id) / sesi akun panitia → middleware panitia.session
+     *  - tablet kiosk  : sesi tempat perangkat didaftarkan → middleware kiosk.device
+     *  - tanpa konteks (perintah konsol): sesi terbaru.
+     */
     public static function current(): ?self
     {
+        if (app()->bound(self::CONTAINER_KEY)) {
+            return app(self::CONTAINER_KEY);
+        }
+
         return static::query()->latest('id')->first();
+    }
+
+    /** Menetapkan sesi aktif untuk sisa request (null = sengaja tidak ada sesi). */
+    public static function useCurrent(?self $election): void
+    {
+        app()->instance(self::CONTAINER_KEY, $election);
+    }
+
+    public static function forgetCurrent(): void
+    {
+        app()->forgetInstance(self::CONTAINER_KEY);
+    }
+
+    public function voters(): HasMany
+    {
+        return $this->hasMany(Voter::class);
+    }
+
+    public function devices(): HasMany
+    {
+        return $this->hasMany(KioskDevice::class);
+    }
+
+    /** Label tampilan: "SMAN 1 Ciruas — Pemilihan Ketua OSIS 2026/2027". */
+    public function label(): string
+    {
+        return trim(($this->school_name ? $this->school_name.' — ' : '').$this->name);
+    }
+
+    public static function makeSlug(string $school, ?int $exceptId = null): string
+    {
+        $base = Str::slug($school) ?: 'sesi';
+        $base = Str::limit($base, 60, '');
+        $slug = $base;
+        for ($i = 2; static::where('slug', $slug)->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->exists(); $i++) {
+            $slug = $base.'-'.$i;
+        }
+
+        return $slug;
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Election $e) {
+            $e->school_name ??= 'Sekolah';
+            $e->slug ??= static::makeSlug($e->school_name.($e->is_simulation ? ' simulasi' : ''));
+        });
     }
 
     public function scopeReal(Builder $q): Builder

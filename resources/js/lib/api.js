@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getDeviceToken } from './device';
+import { getSessionId, setSessionId } from './session';
 
 /**
  * Klien API.
@@ -19,6 +20,24 @@ function create() {
 
 export const api = create();
 export const kiosk = create();
+
+// Panel panitia: sesi (sekolah) yang sedang dipilih.
+api.interceptors.request.use((config) => {
+    const session = getSessionId();
+    if (session && String(config.url || '').startsWith('/panitia')) config.headers['X-Session-Id'] = session;
+    return config;
+});
+
+// Sesi tersimpan milik sekolah lain (mis. peramban bekas admin) → lupakan & ulangi sekali dengan sesi akun sendiri.
+api.interceptors.response.use(undefined, (error) => {
+    if (error.response?.status === 403 && error.response.data?.code === 'session_forbidden' && !error.config.__sessionRetried) {
+        setSessionId(null);
+        error.config.__sessionRetried = true;
+        delete error.config.headers['X-Session-Id'];
+        return api(error.config);
+    }
+    return Promise.reject(error);
+});
 
 kiosk.interceptors.request.use((config) => {
     const token = getDeviceToken();

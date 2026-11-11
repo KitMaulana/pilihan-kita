@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
 
     // ── Publik ───────────────────────────────────────────────────────────────
     Route::prefix('public')->group(function () {
+        Route::get('sessions', [PublicController::class, 'sessions'])->middleware('throttle:public');
         Route::get('results', [PublicController::class, 'results'])->middleware('throttle:public');
         Route::post('receipt', [PublicController::class, 'receipt'])->middleware('throttle:receipt');
         Route::get('candidates/{candidate}/photo', [PublicController::class, 'candidatePhoto'])->middleware('throttle:public');
@@ -50,7 +51,10 @@ Route::prefix('v1')->group(function () {
     });
 
     // ── Panel panitia ────────────────────────────────────────────────────────
-    Route::prefix('panitia')->middleware(['auth:sanctum', 'role:admin,panitia', 'throttle:panitia'])->group(function () {
+    Route::prefix('panitia')->middleware(['auth:sanctum', 'role:admin,panitia', 'throttle:panitia', 'panitia.session'])->group(function () {
+        // Sesi (sekolah) yang boleh diakses akun ini — untuk pemilih sesi di header panel.
+        Route::get('sessions', [ElectionController::class, 'sessions']);
+
         Route::get('dashboard', DashboardController::class);
 
         Route::get('voters', [VoterController::class, 'index']);
@@ -76,7 +80,7 @@ Route::prefix('v1')->group(function () {
         Route::post('devices/{device}/revoke', [DeviceController::class, 'revoke']);
 
         Route::get('election', [ElectionController::class, 'show']);
-        Route::post('election', [ElectionController::class, 'store']);
+
         Route::put('election', [ElectionController::class, 'update']);
         Route::post('election/status', [ElectionController::class, 'status']);
         Route::get('election/verify', [ElectionController::class, 'verify']);
@@ -92,6 +96,10 @@ Route::prefix('v1')->group(function () {
             Route::delete('face-templates/{voter}', [FaceTemplateController::class, 'destroy']);
             Route::post('face-templates/purge', [FaceTemplateController::class, 'purge']);
             Route::post('election/reset-votes', [ElectionController::class, 'resetVotes']);
+
+            // Kelola sesi (sekolah): buat & hapus sesi.
+            Route::post('election', [ElectionController::class, 'store']);
+            Route::delete('election', [ElectionController::class, 'destroy']);
 
             Route::get('users', [UserController::class, 'index']);
             Route::post('users', [UserController::class, 'store']);

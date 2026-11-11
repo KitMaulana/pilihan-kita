@@ -17,7 +17,7 @@ class EnsureVotingOpen
         if (! $election || ! $election->isVotingOpen()) {
             return response()->json([
                 'code' => 'voting_closed',
-                'message' => $election?->votingClosedReason() ?? 'Belum ada pemilihan yang disiapkan.',
+                'message' => $election?->votingClosedReason() ?? 'Perangkat ini belum terhubung ke sesi pemilihan. Hubungi panitia.',
             ], 403);
         }
 

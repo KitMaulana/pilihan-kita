@@ -54,7 +54,7 @@ class PanitiaRevisionTest extends TestCase
 
         $this->getJson('/api/v1/panitia/election')
             ->assertJsonPath('data.allowed_transitions', [Election::OPEN, Election::CLOSED])
-            ->assertJsonPath('data.can_create_new', false);
+            ->assertJsonPath('data.can_delete', true);
 
         // Tanpa kandidat / pemilih sekalipun.
         $this->postJson('/api/v1/panitia/election/status', ['status' => 'closed', 'confirm' => 'TUTUP'])
@@ -64,12 +64,16 @@ class PanitiaRevisionTest extends TestCase
             ->assertJsonPath('data.votes_count', 0)
             ->assertJsonPath('data.can_create_new', true);
 
-        $this->postJson('/api/v1/panitia/election', ['name' => 'Baru'])->assertCreated();
-        $this->assertNotSame($election->id, Election::current()->id);
+        // Membuat sesi baru khusus admin (multi-sekolah: boleh kapan saja).
+        $this->postJson('/api/v1/panitia/election', ['school_name' => 'SMA Baru', 'name' => 'Baru'])->assertForbidden();
+        $this->actingAs($this->admin());
+        $this->postJson('/api/v1/panitia/election', ['school_name' => 'SMA Baru', 'name' => 'Baru'])->assertCreated()->assertJsonPath('data.slug', 'sma-baru');
+        $this->assertSame(2, Election::count());
     }
 
     public function test_tambah_pemilih_satuan(): void
     {
+        $this->schoolSession();
         $this->actingAs($this->panitia());
 
         $this->postJson('/api/v1/panitia/voters', [

@@ -15,6 +15,10 @@ class ElectionUpdateRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:150'],
+            'school_name' => ['sometimes', 'string', 'max:150'],
+            // Tautan publik /hasil/{slug}; huruf kecil, angka, tanda hubung.
+            'slug' => ['sometimes', 'string', 'min:3', 'max:80', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                \Illuminate\Validation\Rule::unique('elections', 'slug')->ignore(\App\Models\Election::current()?->id)],
             'opens_at' => ['sometimes', 'nullable', 'date'],
             'closes_at' => ['sometimes', 'nullable', 'date', 'after:opens_at'],
             'settings' => ['sometimes', 'array'],
@@ -31,6 +35,10 @@ class ElectionUpdateRequest extends FormRequest
 
     public function messages(): array
     {
-        return ['closes_at.after' => 'Jam tutup harus setelah jam buka.'];
+        return [
+            'closes_at.after' => 'Jam tutup harus setelah jam buka.',
+            'slug.regex' => 'Tautan hanya boleh huruf kecil, angka, dan tanda hubung (mis. sman-1-ciruas).',
+            'slug.unique' => 'Tautan ini sudah dipakai sesi lain.',
+        ];
     }
 }

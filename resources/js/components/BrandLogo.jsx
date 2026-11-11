@@ -25,12 +25,13 @@ const MARK_CROP = {
     },
 };
 
+// Skala diperbesar (permintaan pemilik 2026-11-12): logo CiptaKita tampil lebih menonjol di semua tempat.
 const HEIGHT_CLASS = {
-    xs: 'h-6',
-    sm: 'h-8',
-    md: 'h-10',
-    lg: 'h-12',
-    xl: 'h-16',
+    xs: 'h-9',
+    sm: 'h-11',
+    md: 'h-14',
+    lg: 'h-16',
+    xl: 'h-20',
 };
 
 const SURFACE_CLASS = {
@@ -65,14 +66,14 @@ export function BrandLogo({ variant = 'full', size = 'sm', surface = 'none', cla
 /**
  * Lockup identitas gabungan: Logo CiptaKita.id + nama aplikasi Pilihan Kita.
  */
-export function BrandLockup({ dark = false, size = 'sm', subtitle = 'OSIS SMAN 1 Ciruas', className = '' }) {
+export function BrandLockup({ dark = false, size = 'sm', subtitle = 'E-Voting OSIS', className = '' }) {
     return (
         <span className={`inline-flex min-w-0 items-center gap-2 sm:gap-3 ${className}`}>
             <BrandLogo variant="full" size={size} surface={dark ? 'pill' : 'none'} />
-            <span className={`h-5 w-px shrink-0 sm:h-6 ${dark ? 'bg-white/25' : 'bg-slate-300'}`} aria-hidden="true" />
+            <span className={`h-7 w-px shrink-0 sm:h-8 ${dark ? 'bg-white/25' : 'bg-slate-300'}`} aria-hidden="true" />
             <span className="min-w-0 leading-tight">
-                <span className={`block truncate text-xs font-extrabold tracking-tight sm:text-sm ${dark ? 'text-white' : 'text-brand-900'}`}>Pilihan Kita</span>
-                {subtitle && <span className={`block truncate text-[10px] font-medium sm:text-[11px] ${dark ? 'text-brand-200' : 'text-slate-500'}`}>{subtitle}</span>}
+                <span className={`block truncate text-sm font-extrabold tracking-tight sm:text-base ${dark ? 'text-white' : 'text-brand-900'}`}>Pilihan Kita</span>
+                {subtitle && <span className={`block truncate text-[11px] font-medium sm:text-xs ${dark ? 'text-brand-200' : 'text-slate-500'}`}>{subtitle}</span>}
             </span>
         </span>
     );

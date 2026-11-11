@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../../lib/api';
 import { formatDateTime, fromWibInput, STATUS_LABEL, toWibInput } from '../../lib/format';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/useAuth';
+import { switchSession } from '../../components/SessionSwitcher';
 import { IconCalendarClock, IconCheckCircle, IconPrinter, IconShieldCheck } from '../../components/Icons';
 import { Alert, Badge, Field, Spinner, toast, TypedConfirm } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
@@ -13,28 +15,6 @@ const TRANSITION = {
     published: { word: 'PUBLIKASI', label: 'Publikasikan hasil akhir', desc: 'Ledger diverifikasi; bila valid, hasil akhir & hash terakhir ditampilkan ke publik. Tidak dapat dibatalkan.' },
 };
 
-function CreateElection() {
-    const qc = useQueryClient();
-    const [name, setName] = useState('Pemilihan Ketua OSIS SMAN 1 Ciruas');
-    const m = useMutation({
-        mutationFn: () => api.post('/panitia/election', { name }),
-        onSuccess: () => {
-            toast.success('Pemilihan dibuat.');
-            qc.invalidateQueries();
-        },
-        onError: (e) => toast.error(errorMessage(e)),
-    });
-    return (
-        <section className="card space-y-4">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Buat pemilihan baru</h2>
-            <Field label="Nama pemilihan">{(id) => <input id={id} className="input" value={name} onChange={(e) => setName(e.target.value)} />}</Field>
-            <button className="btn-primary" onClick={() => m.mutate()} disabled={m.isPending || !name}>
-                Buat pemilihan
-            </button>
-        </section>
-    );
-}
-
 function SettingsForm({ election }) {
     const qc = useQueryClient();
     const { isAdmin } = useAuth();
@@ -44,6 +24,8 @@ function SettingsForm({ election }) {
     useEffect(() => {
         setForm({
             name: election.name,
+            school_name: election.school_name || '',
+            slug: election.slug || '',
             opens_at: toWibInput(election.opens_at),
             closes_at: toWibInput(election.closes_at),
             settings: { ...election.settings },
@@ -52,7 +34,8 @@ function SettingsForm({ election }) {
 
     const save = useMutation({
         mutationFn: () => {
-            const payload = { name: form.name, opens_at: fromWibInput(form.opens_at), closes_at: fromWibInput(form.closes_at) };
+            const payload = { name: form.name, school_name: form.school_name, opens_at: fromWibInput(form.opens_at), closes_at: fromWibInput(form.closes_at) };
+            if (isAdmin && form.slug && form.slug !== election.slug) payload.slug = form.slug;
             if (election.status === 'draft' || isAdmin) payload.settings = form.settings;
             return api.put('/panitia/election', payload);
         },
@@ -60,6 +43,7 @@ function SettingsForm({ election }) {
             toast.success('Pengaturan disimpan.');
             setError(null);
             qc.invalidateQueries({ queryKey: ['election'] });
+            qc.invalidateQueries({ queryKey: ['sessions'] });
         },
         onError: (e) => setError(errorMessage(e)),
     });
@@ -78,8 +62,18 @@ function SettingsForm({ election }) {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Nama sekolah">{(id) => <input id={id} className="input" value={form.school_name} disabled={locked} onChange={(e) => setForm({ ...form, school_name: e.target.value })} />}</Field>
+                <Field label="Nama pemilihan">{(id) => <input id={id} className="input" value={form.name} disabled={locked} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
                 <div className="sm:col-span-2">
-                    <Field label="Nama pemilihan">{(id) => <input id={id} className="input" value={form.name} disabled={locked} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
+                    <Field label="Tautan hasil publik" hint={isAdmin ? 'Huruf kecil, angka, dan tanda hubung. Mengubahnya membuat tautan lama tidak berlaku.' : 'Hanya admin yang dapat mengubah tautan.'}>
+                        {(id) => (
+                            <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-brand-500">
+                                <span className="hidden shrink-0 border-r border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500 sm:inline">{window.location.host}/hasil/</span>
+                                <span className="shrink-0 border-r border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500 sm:hidden">/hasil/</span>
+                                <input id={id} className="min-w-0 flex-1 px-3 py-3 font-mono text-sm outline-none disabled:bg-slate-50" value={form.slug} disabled={locked || !isAdmin} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} />
+                            </div>
+                        )}
+                    </Field>
                 </div>
                 <Field label="Jam buka (WIB)" hint={formatDateTime(election.opens_at)}>
                     {(id) => <input id={id} type="datetime-local" className="input" value={form.opens_at} disabled={locked} onChange={(e) => setForm({ ...form, opens_at: e.target.value })} />}
@@ -190,7 +184,7 @@ function StatusPanel({ election }) {
         const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
         const rows = r.candidates.map((c) => `<tr><td>${c.number}</td><td>${esc(c.name)}</td><td style="text-align:right">${c.votes}</td><td style="text-align:right">${c.percent}%</td></tr>`).join('');
         w.document.write(`<html><head><title>Laporan ${esc(r.election.name)}</title><style>body{font-family:sans-serif;padding:24px;color:#0f172a}.brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c2668;padding-bottom:12px;margin-bottom:18px}.brand img{height:44px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:8px}th{background:#f1f5f9}code{word-break:break-all}</style></head><body>
-<div class="brand"><img src="/ciptakita-logo.png" alt="CiptaKita.id" /><div style="text-align:right;font-size:12px;color:#475569"><b>Pilihan Kita</b><br>E-Voting OSIS SMAN 1 Ciruas</div></div>
+<div class="brand"><img src="/ciptakita-logo.png" alt="CiptaKita.id" /><div style="text-align:right;font-size:12px;color:#475569"><b>Pilihan Kita</b><br>${esc(r.election.school_name || '')}</div></div>
 <h2>Laporan Hasil — ${esc(r.election.name)}</h2><p>Status: ${STATUS_LABEL[r.election.status]} · Dibuat: ${formatDateTime(data.generated_at)}</p>
 <table><tr><th>No</th><th>Kandidat</th><th>Suara</th><th>%</th></tr>${rows}</table>
 <p>Partisipasi: siswa ${r.participation.students.voted}/${r.participation.students.total}, guru ${r.participation.teachers.voted}/${r.participation.teachers.total}, total ${r.participation.all.voted}/${r.participation.all.total}.</p>
@@ -328,8 +322,8 @@ function SimulationPanel({ election }) {
     const create = useMutation({
         mutationFn: () => api.post('/panitia/simulation', { voters }),
         onSuccess: ({ data }) => {
-            toast.success(data.message);
-            qc.invalidateQueries();
+            toast.success(`${data.message} Sesi simulasi sekarang dipilih.`);
+            switchSession(qc, data.election_id);
         },
         onError: (e) => toast.error(errorMessage(e)),
     });
@@ -338,7 +332,8 @@ function SimulationPanel({ election }) {
         onSuccess: () => {
             toast.success('Data simulasi dihapus.');
             setPurgeOpen(false);
-            qc.invalidateQueries();
+            if (election?.is_simulation) switchSession(qc, null);
+            else qc.invalidateQueries();
         },
         onError: (e) => toast.error(errorMessage(e)),
     });
@@ -346,7 +341,7 @@ function SimulationPanel({ election }) {
         <section className="card space-y-4">
             <h2 className="text-base font-extrabold text-slate-900">Mode simulasi (gladi bersih)</h2>
             <p className="text-sm text-slate-600">
-                Membuat pemilihan percobaan + pemilih palsu (NISN 99xxxxxxxx, tgl lahir 2008-01-01) yang terpisah dari data nyata. Untuk uji wajah, daftarkan foto relawan ke pemilih simulasi. Hapus bersih sebelum hari-H.
+                Membuat <b>sesi simulasi</b> tersendiri + pemilih palsu (NISN 99xxxxxxxx, tgl lahir 2008-01-01), terpisah dari sesi nyata sekolah mana pun. Untuk uji wajah, daftarkan foto relawan ke pemilih simulasi. Hapus bersih sebelum hari-H.
             </p>
             <div className="flex flex-wrap items-end gap-2">
                 <Field label="Jumlah pemilih palsu">{(id) => <input id={id} type="number" min="1" max="2000" className="input w-36" value={voters} onChange={(e) => setVoters(Number(e.target.value))} />}</Field>
@@ -357,7 +352,7 @@ function SimulationPanel({ election }) {
                     Hapus semua data simulasi
                 </button>
             </div>
-            {election?.is_simulation && <Alert type="warning">Pemilihan aktif saat ini adalah SIMULASI.</Alert>}
+            {election?.is_simulation && <Alert type="warning">Sesi yang sedang dipilih adalah SIMULASI.</Alert>}
             <TypedConfirm open={purgeOpen} onClose={() => setPurgeOpen(false)} onConfirm={(v) => purge.mutate(v)} title="Hapus data simulasi" word="HAPUS SIMULASI" danger busy={purge.isPending} />
         </section>
     );
@@ -418,7 +413,7 @@ function ResetVotesPanel({ election }) {
     );
 }
 
-function RetentionPanel() {
+function RetentionPanel({ election }) {
     const qc = useQueryClient();
     const [open, setOpen] = useState(false);
     const m = useMutation({
@@ -433,11 +428,53 @@ function RetentionPanel() {
     return (
         <section className="card space-y-3 border-crimson-200 bg-crimson-50/20">
             <h2 className="text-base font-extrabold text-crimson-800">Retensi data wajah</h2>
-            <p className="text-sm text-slate-600">Setelah hasil final, hapus semua template wajah sesuai kebijakan retensi. Tindakan ini permanen dan tercatat di log.</p>
+            <p className="text-sm text-slate-600">Setelah hasil final, hapus semua template wajah pemilih <b>{election?.school_name}</b> sesuai kebijakan retensi. Sekolah lain tidak terpengaruh. Tindakan ini permanen dan tercatat di log.</p>
             <button className="btn-danger" onClick={() => setOpen(true)}>
                 Hapus semua template wajah
             </button>
-            <TypedConfirm open={open} onClose={() => setOpen(false)} onConfirm={(v) => m.mutate(v)} title="Hapus semua template wajah" word="HAPUS SEMUA WAJAH" danger busy={m.isPending} />
+            <TypedConfirm open={open} onClose={() => setOpen(false)} onConfirm={(v) => m.mutate(v)} title={`Hapus semua template wajah — ${election?.school_name || ''}`} word="HAPUS SEMUA WAJAH" danger busy={m.isPending} />
+        </section>
+    );
+}
+
+/** Admin: hapus sesi yang salah dibuat (hanya bila belum ada check-in/suara). */
+function DeleteSessionPanel({ election }) {
+    const qc = useQueryClient();
+    const navigate = useNavigate();
+    const [open, setOpen] = useState(false);
+    const [error, setError] = useState(null);
+    const m = useMutation({
+        mutationFn: (confirm) => api.delete('/panitia/election', { data: { confirm } }),
+        onSuccess: ({ data }) => {
+            toast.success(data.message);
+            setOpen(false);
+            switchSession(qc, null);
+            navigate('/panitia/sesi');
+        },
+        onError: (e) => setError(errorMessage(e)),
+    });
+    return (
+        <section className="card space-y-3 border-crimson-200 bg-crimson-50/20">
+            <h2 className="text-base font-extrabold text-crimson-800">Hapus sesi ini</h2>
+            <p className="text-sm text-slate-600">
+                Menghapus sesi <b>{election.label}</b> beserta kandidat, daftar pemilih, dan template wajahnya. Hanya bisa selama belum ada check-in atau suara.
+            </p>
+            <button className="btn-danger" onClick={() => setOpen(true)}>
+                Hapus sesi
+            </button>
+            <TypedConfirm
+                open={open}
+                onClose={() => {
+                    setOpen(false);
+                    setError(null);
+                }}
+                onConfirm={(v) => m.mutate(v)}
+                title={`Hapus sesi ${election.school_name}`}
+                word="HAPUS SESI"
+                danger
+                busy={m.isPending}
+                error={error}
+            />
         </section>
     );
 }
@@ -464,10 +501,18 @@ export default function Jadwal() {
                 <section className="card space-y-4">
                     <h2 className="font-extrabold text-slate-900">Status pemilihan</h2>
                     <StatusStepper status={null} />
-                    <p className="text-sm text-slate-600">Belum ada pemilihan. Buat pemilihan di bawah ini; setelah itu tombol Buka / Tutup / Publikasikan tersedia di sini.</p>
+                    <p className="text-sm text-slate-600">
+                        Belum ada sesi sekolah.{' '}
+                        {isAdmin ? (
+                            <Link to="/panitia/sesi" className="font-bold text-brand-700 underline">
+                                Buat sesi di menu Sesi Sekolah
+                            </Link>
+                        ) : (
+                            'Minta admin membuat sesi untuk sekolah Anda.'
+                        )}
+                    </p>
                 </section>
             )}
-            {!election || (election.can_create_new && !election.is_simulation) ? <CreateElection /> : null}
             {election && (
                 <>
                     <StatusPanel election={election} />
@@ -476,7 +521,8 @@ export default function Jadwal() {
             )}
             {isAdmin && election && <ResetVotesPanel election={election} />}
             {isAdmin && <SimulationPanel election={election} />}
-            {isAdmin && <RetentionPanel />}
+            {isAdmin && election && <RetentionPanel election={election} />}
+            {isAdmin && election?.can_delete && <DeleteSessionPanel election={election} />}
         </div>
     );
 }

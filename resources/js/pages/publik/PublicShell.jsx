@@ -17,7 +17,7 @@ export default function PublicShell({ children, wide = false }) {
                 <div className="h-1 w-full bg-gradient-to-r from-brand-800 via-brand-500 to-crimson-600" aria-hidden="true" />
                 <div className={`mx-auto flex ${maxW} flex-wrap items-center justify-between gap-2 px-4 py-2.5 sm:py-3`}>
                     <Link to="/" className="min-w-0 rounded-xl py-0.5 focus-visible:outline-offset-4">
-                        <BrandLockup size="sm" subtitle="E-Voting OSIS · SMAN 1 Ciruas" />
+                        <BrandLockup size="sm" subtitle="E-Voting OSIS" />
                     </Link>
 
                     <nav className="flex items-center gap-1 sm:gap-1.5" aria-label="Navigasi utama">
@@ -52,7 +52,7 @@ export default function PublicShell({ children, wide = false }) {
                         <BrandLogo variant="full" size="xs" />
                         <span className="hidden h-4 w-px bg-slate-300 sm:inline-block" aria-hidden="true" />
                         <span className="text-xs font-medium text-slate-500">
-                            Pilihan Kita · E-Voting OSIS SMAN 1 Ciruas
+                            Pilihan Kita · E-Voting OSIS
                         </span>
                     </div>
                     <p className="text-xs text-slate-500">
