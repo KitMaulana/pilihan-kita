@@ -1,13 +1,14 @@
 import { useState } from 'react';
+import { BrandLogo } from '../../components/BrandLogo';
+import { IconAlertTriangle, IconClose, IconInfoCircle } from '../../components/Icons';
 import { useKiosk } from './kioskStore';
 import { useCountdown } from './useCountdown';
 
 const TONES = {
-    info: 'bg-brand-100 text-brand-700',
-    warning: 'bg-amber-100 text-amber-700',
-    danger: 'bg-red-100 text-red-700',
+    info: { box: 'bg-brand-50 text-brand-700 ring-brand-200', Icon: IconInfoCircle },
+    warning: { box: 'bg-amber-50 text-amber-700 ring-amber-200', Icon: IconAlertTriangle },
+    danger: { box: 'bg-crimson-50 text-crimson-700 ring-crimson-200', Icon: IconClose },
 };
-const ICONS = { info: 'i', warning: '!', danger: '×' };
 
 export default function MessageStep() {
     const message = useKiosk((s) => s.message);
@@ -19,18 +20,23 @@ export default function MessageStep() {
     if (!message) return null;
     const actions = message.actions || ['home'];
     const tone = message.tone || 'info';
+    const cfg = TONES[tone] || TONES.info;
+    const Ico = cfg.Icon;
 
     // "Coba lagi" mempertahankan hitungan kegagalan wajah, "Kembali ke awal" mereset semuanya.
     const retry = () => useKiosk.setState({ step: 'scan', message: null });
 
     return (
         <div className="flex flex-1 items-center justify-center p-4">
-            <div className="w-full max-w-lg rounded-3xl bg-white p-6 text-center text-slate-900 shadow-2xl sm:p-8">
-                <div className={`mx-auto flex size-16 items-center justify-center rounded-full text-3xl font-black ${TONES[tone]}`} aria-hidden="true">
-                    {ICONS[tone]}
+            <div className="w-full max-w-lg rounded-3xl border border-white/20 bg-white p-6 text-center text-slate-900 shadow-2xl sm:p-8">
+                <div className="mb-4 flex justify-center">
+                    <BrandLogo variant="full" size="xs" />
                 </div>
-                <h1 className="mt-4 text-2xl font-extrabold">{message.title}</h1>
-                <p className="mt-2 text-lg text-slate-600" role="alert">
+                <div className={`mx-auto flex size-16 items-center justify-center rounded-2xl ring-1 ${cfg.box}`} aria-hidden="true">
+                    <Ico className="size-8" />
+                </div>
+                <h1 className="mt-4 text-2xl font-extrabold tracking-tight">{message.title}</h1>
+                <p className="mt-2 text-base leading-relaxed text-slate-600 sm:text-lg" role="alert">
                     {message.text}
                 </p>
                 <div className="mt-6 grid gap-3">
@@ -50,7 +56,7 @@ export default function MessageStep() {
                         ),
                     )}
                 </div>
-                <p className="mt-4 text-xs text-slate-400">Kembali ke awal otomatis dalam {left} detik.</p>
+                <p className="mt-4 text-xs font-medium text-slate-400">Kembali ke awal otomatis dalam {left} detik.</p>
             </div>
         </div>
     );

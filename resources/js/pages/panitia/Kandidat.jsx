@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../../lib/api';
-import { Alert, EmptyState, Field, Modal, Spinner, toast } from '../../components/ui';
+import { IconAward } from '../../components/Icons';
+import { Alert, Badge, EmptyState, Field, Modal, Spinner, toast } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
 
 const MAX_PHOTO = 2 * 1024 * 1024;
@@ -107,7 +108,7 @@ function CandidateForm({ candidate, nextNumber, onClose }) {
                             type="text"
                             inputMode="numeric"
                             maxLength={2}
-                            className="input"
+                            className="input text-center font-mono text-lg font-bold"
                             value={form.number}
                             onChange={(e) => setForm({ ...form, number: e.target.value.replace(/\D/g, '') })}
                         />
@@ -122,7 +123,7 @@ function CandidateForm({ candidate, nextNumber, onClose }) {
                     {(id) => <input id={id} className="input" value={form.class_name} onChange={set('class_name')} placeholder="XI IPA 1" />}
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-[140px_1fr] sm:items-start">
-                    <div className="mx-auto flex aspect-[3/4] w-32 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 sm:w-full">
+                    <div className="mx-auto flex aspect-[3/4] w-32 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:w-full">
                         {shownPhoto ? (
                             <img src={shownPhoto} alt="Pratinjau foto kandidat" className="h-full w-full object-cover" />
                         ) : (
@@ -131,11 +132,11 @@ function CandidateForm({ candidate, nextNumber, onClose }) {
                     </div>
                     <div className="space-y-2">
                         <Field label="Foto kandidat (JPG/PNG/WebP, maks. 2 MB)" error={fieldErrors.photo} hint="Opsional. Disarankan potret 3:4.">
-                            {(id) => <input id={id} type="file" accept="image/jpeg,image/png,image/webp" className="input py-2.5" onChange={(e) => pickPhoto(e.target.files[0] || null)} />}
+                            {(id) => <input id={id} type="file" accept="image/jpeg,image/png,image/webp" className="input py-2" onChange={(e) => pickPhoto(e.target.files[0] || null)} />}
                         </Field>
                         {candidate?.photo_url && !photo && (
-                            <label className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" checked={removePhoto} onChange={(e) => setRemovePhoto(e.target.checked)} /> Hapus foto saat ini
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" className="size-4 rounded accent-brand-700" checked={removePhoto} onChange={(e) => setRemovePhoto(e.target.checked)} /> Hapus foto saat ini
                             </label>
                         )}
                     </div>
@@ -146,8 +147,8 @@ function CandidateForm({ candidate, nextNumber, onClose }) {
                 <Field label="Misi (satu per baris)" error={fieldErrors.mission}>
                     {(id) => <textarea id={id} rows={5} className="input" value={form.mission} onChange={set('mission')} />}
                 </Field>
-                <label className="flex items-center gap-2">
-                    <input type="checkbox" className="size-5" checked={form.is_active} onChange={set('is_active')} /> Aktif (tampil di kiosk)
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox" className="size-5 rounded accent-brand-700" checked={form.is_active} onChange={set('is_active')} /> Aktif (tampil di kiosk)
                 </label>
                 {error && <Alert type="danger">{error}</Alert>}
             </div>
@@ -173,10 +174,14 @@ export default function Kandidat() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <h1 className="text-2xl font-bold text-slate-900">Kandidat</h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Kandidat</h1>
+                    <p className="mt-0.5 text-sm text-slate-500">Daftar pasangan calon Ketua OSIS beserta foto, visi, dan misi.</p>
+                </div>
                 {editable && (
                     <button className="btn-primary" onClick={() => setEditing('new')}>
+                        <IconAward className="size-4" />
                         Tambah kandidat
                     </button>
                 )}
@@ -184,36 +189,54 @@ export default function Kandidat() {
             {!election && <Alert>Buat pemilihan terlebih dahulu di menu Jadwal &amp; Status.</Alert>}
             {election && !editable && <Alert type="warning">Data kandidat terkunci karena pemilihan sudah tidak berstatus draf.</Alert>}
 
-            {list.isLoading && <Spinner />}
+            {list.isLoading && <Spinner label="Memuat kandidat…" />}
             {list.data?.length === 0 && <EmptyState>Belum ada kandidat.</EmptyState>}
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {list.data?.map((c) => (
-                    <article key={c.id} className={`card flex flex-col ${c.is_active ? '' : 'opacity-60'}`}>
-                        <div className="relative -mx-4 -mt-4 mb-4 aspect-[4/3] overflow-hidden rounded-t-2xl bg-slate-100 sm:-mx-6 sm:-mt-6">
-                            {c.photo_url ? <img src={c.photo_url} alt={c.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-6xl font-black text-slate-300">{c.number}</div>}
-                            <span className="absolute top-3 left-3 rounded-xl bg-brand-800 px-3 py-1 text-xl font-black text-white">{c.number}</span>
+                    <article key={c.id} className={`card flex flex-col overflow-hidden p-0 sm:p-0 ${c.is_active ? '' : 'opacity-65'}`}>
+                        <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                            {c.photo_url ? (
+                                <img src={c.photo_url} alt={c.name} className="h-full w-full object-cover" />
+                            ) : (
+                                <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-6xl font-black text-slate-300">
+                                    {c.number}
+                                </div>
+                            )}
+                            <span className="absolute top-3 left-3 flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-900 to-brand-700 font-mono text-xl font-black text-white shadow-md ring-2 ring-white/80">
+                                {c.number}
+                            </span>
+                            {!c.is_active && (
+                                <span className="absolute top-3 right-3">
+                                    <Badge color="gray">Nonaktif</Badge>
+                                </span>
+                            )}
                         </div>
-                        <h2 className="text-lg font-bold">{c.name}</h2>
-                        <p className="text-sm text-slate-500">{c.class_name}</p>
-                        {c.vision && <p className="mt-2 text-sm text-slate-700">{c.vision}</p>}
-                        {c.mission && (
-                            <ul className="mt-2 list-disc pl-5 text-sm text-slate-600">
-                                {c.mission.split('\n').filter(Boolean).map((m, i) => (
-                                    <li key={i}>{m}</li>
-                                ))}
-                            </ul>
-                        )}
-                        {editable && (
-                            <div className="mt-auto flex gap-2 pt-4">
-                                <button className="btn-secondary btn-sm" onClick={() => setEditing(c)}>
-                                    Ubah
-                                </button>
-                                <button className="btn-ghost btn-sm text-red-700" onClick={() => confirm(`Hapus kandidat ${c.name}?`) && remove.mutate(c.id)}>
-                                    Hapus
-                                </button>
-                            </div>
-                        )}
+                        <div className="flex flex-1 flex-col p-5">
+                            <h2 className="text-lg font-extrabold tracking-tight text-slate-900">{c.name}</h2>
+                            {c.class_name && <p className="text-sm font-semibold text-brand-700">{c.class_name}</p>}
+                            {c.vision && <p className="mt-2.5 text-sm leading-relaxed text-slate-700">{c.vision}</p>}
+                            {c.mission && (
+                                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                                    {c.mission.split('\n').filter(Boolean).map((m, i) => (
+                                        <li key={i}>{m}</li>
+                                    ))}
+                                </ul>
+                            )}
+                            {editable && (
+                                <div className="mt-auto flex gap-2 border-t border-slate-100 pt-4">
+                                    <button className="btn-secondary btn-sm flex-1" onClick={() => setEditing(c)}>
+                                        Ubah
+                                    </button>
+                                    <button
+                                        className="btn-ghost btn-sm text-crimson-700 hover:bg-crimson-50"
+                                        onClick={() => confirm(`Hapus kandidat ${c.name}?`) && remove.mutate(c.id)}
+                                    >
+                                        Hapus
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </article>
                 ))}
             </div>

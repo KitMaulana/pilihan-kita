@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { BrandLogo } from '../components/BrandLogo';
 import { Spinner } from '../components/ui';
 import RequireAuth from '../features/auth/RequireAuth';
 
@@ -26,8 +27,9 @@ const Pengguna = lazy(() => import('../pages/panitia/Pengguna'));
 
 function Loading() {
     return (
-        <div className="flex min-h-dvh items-center justify-center">
-            <Spinner label="Memuat…" />
+        <div className="bg-light-grid flex min-h-dvh flex-col items-center justify-center gap-4 px-4">
+            <BrandLogo size="md" surface="card" />
+            <Spinner label="Memuat halaman…" />
         </div>
     );
 }

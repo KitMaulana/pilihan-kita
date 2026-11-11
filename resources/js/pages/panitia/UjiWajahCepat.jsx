@@ -4,6 +4,7 @@ import { cosine, detectFaces, embedFace, lastTimings, loadImageFile } from '../.
 import { analyzeFrame, createLivenessSession } from '../../features/face/liveness';
 import { assessEnrollment, measureQuality } from '../../features/face/quality';
 import { DETECTION, QUALITY } from '../../features/face/config';
+import { IconAlertTriangle, IconCheckCircle, IconClose, IconFaceScan, IconUpload } from '../../components/Icons';
 import { Alert, Badge, toast } from '../../components/ui';
 
 const SCAN_FRAMES = 5; // jumlah frame wajah layak yang dirata-rata
@@ -24,22 +25,30 @@ function fileLabel(name) {
 /* ── Langkah 1: foto acuan ──────────────────────────────────────────────── */
 function ReferenceCard({ ref_, onRename, onRemove }) {
     return (
-        <li className={`flex gap-3 rounded-xl border p-3 ${ref_.status === 'ok' ? 'border-emerald-200 bg-emerald-50/40' : ref_.status === 'error' ? 'border-red-200 bg-red-50/40' : 'border-slate-200'}`}>
-            <div className="size-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+        <li
+            className={`flex gap-3 rounded-2xl border p-3 ${
+                ref_.status === 'ok'
+                    ? 'border-emerald-200 bg-emerald-50/40'
+                    : ref_.status === 'error'
+                      ? 'border-crimson-200 bg-crimson-50/40'
+                      : 'border-slate-200 bg-slate-50/50'
+            }`}
+        >
+            <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                 <img src={ref_.preview} alt="" className="h-full w-full object-cover" />
             </div>
-            <div className="min-w-0 flex-1 space-y-1">
-                <input className="input min-h-10 py-1.5 text-sm" value={ref_.label} onChange={(e) => onRename(e.target.value)} aria-label="Nama pemilik foto" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+                <input className="input min-h-9 py-1 text-sm" value={ref_.label} onChange={(e) => onRename(e.target.value)} aria-label="Nama pemilik foto" />
                 {ref_.status === 'processing' && <p className="text-xs text-slate-500">Memproses…</p>}
                 {ref_.status === 'ok' && (
-                    <p className="text-xs text-emerald-700">
+                    <p className="text-xs font-medium text-emerald-700">
                         ✓ Wajah terbaca{ref_.warnings.length > 0 && <span className="text-amber-700"> · {ref_.warnings.join('; ')}</span>}
                     </p>
                 )}
-                {ref_.status === 'error' && <p className="text-xs text-red-700">✗ {ref_.error}</p>}
+                {ref_.status === 'error' && <p className="text-xs font-medium text-crimson-700">✗ {ref_.error}</p>}
             </div>
-            <button className="btn-ghost btn-sm self-start text-red-700" onClick={onRemove} aria-label={`Hapus foto ${ref_.label}`}>
-                ✕
+            <button className="btn-ghost btn-sm self-start text-crimson-700 hover:bg-crimson-50" onClick={onRemove} aria-label={`Hapus foto ${ref_.label}`}>
+                <IconClose className="size-4" />
             </button>
         </li>
     );
@@ -49,37 +58,40 @@ function ReferenceCard({ ref_, onRename, onRemove }) {
 function ResultCard({ result, threshold, margin, onRescan, onSave }) {
     const { ranked, verdict, timings, livenessPassed } = result;
     const tone = {
-        match: { box: 'border-emerald-300 bg-emerald-50', text: 'text-emerald-800', icon: '✓' },
-        ambiguous: { box: 'border-amber-300 bg-amber-50', text: 'text-amber-800', icon: '?' },
-        nomatch: { box: 'border-red-300 bg-red-50', text: 'text-red-800', icon: '✗' },
+        match: { box: 'border-emerald-300 bg-emerald-50/80', text: 'text-emerald-800', Icon: IconCheckCircle },
+        ambiguous: { box: 'border-amber-300 bg-amber-50/80', text: 'text-amber-800', Icon: IconAlertTriangle },
+        nomatch: { box: 'border-crimson-300 bg-crimson-50/80', text: 'text-crimson-800', Icon: IconClose },
     }[verdict.kind];
+    const Ico = tone.Icon;
 
     return (
         <div className="space-y-4">
-            <div className={`rounded-2xl border-2 p-5 ${tone.box}`} role="status">
-                <div className="flex items-center gap-4">
-                    <span className={`flex size-14 shrink-0 items-center justify-center rounded-full bg-white text-3xl font-black ${tone.text}`}>{tone.icon}</span>
+            <div className={`rounded-2xl border-2 p-4 ${tone.box}`} role="status">
+                <div className="flex items-center gap-3.5">
+                    <span className={`flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white shadow-xs ${tone.text}`}>
+                        <Ico className="size-7" />
+                    </span>
                     <div>
-                        <p className={`text-xl font-bold ${tone.text}`}>{verdict.title}</p>
-                        <p className="text-sm text-slate-700">{verdict.detail}</p>
+                        <p className={`text-lg font-extrabold ${tone.text}`}>{verdict.title}</p>
+                        <p className="text-xs leading-relaxed text-slate-700 sm:text-sm">{verdict.detail}</p>
                     </div>
                 </div>
             </div>
 
             <div>
-                <h4 className="mb-2 text-sm font-semibold text-slate-700">Skor kemiripan per foto acuan</h4>
-                <ul className="space-y-2">
+                <h4 className="mb-2 text-sm font-bold text-slate-800">Skor kemiripan per foto acuan</h4>
+                <ul className="space-y-2.5">
                     {ranked.map((r, i) => {
-                        const pct = Math.max(0, Math.min(1, r.score));
+                        const p = Math.max(0, Math.min(1, r.score));
                         return (
                             <li key={r.id}>
                                 <div className="flex justify-between text-sm">
-                                    <span className={i === 0 ? 'font-semibold' : ''}>{r.label}</span>
-                                    <span className="font-mono tabular-nums">{r.score.toFixed(3)}</span>
+                                    <span className={i === 0 ? 'font-bold text-slate-900' : 'text-slate-700'}>{r.label}</span>
+                                    <span className="font-mono font-semibold tabular-nums">{r.score.toFixed(3)}</span>
                                 </div>
                                 <div className="relative mt-1 h-3 rounded-full bg-slate-100">
-                                    <div className={`h-3 rounded-full ${r.score >= threshold ? 'bg-emerald-500' : 'bg-slate-400'}`} style={{ width: `${pct * 100}%` }} />
-                                    <div className="absolute -top-1 h-5 w-0.5 bg-slate-800" style={{ left: `${threshold * 100}%` }} title={`Ambang ${threshold}`} />
+                                    <div className={`h-3 rounded-full ${r.score >= threshold ? 'bg-emerald-500' : 'bg-slate-400'}`} style={{ width: `${p * 100}%` }} />
+                                    <div className="absolute -top-1 h-5 w-0.5 bg-slate-900" style={{ left: `${threshold * 100}%` }} title={`Ambang ${threshold}`} />
                                 </div>
                             </li>
                         );
@@ -90,15 +102,15 @@ function ResultCard({ result, threshold, margin, onRescan, onSave }) {
                 </p>
             </div>
 
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl bg-slate-50 p-3 text-sm sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-2xl bg-slate-50 p-3.5 text-xs sm:grid-cols-4 sm:text-sm">
                 <dt className="text-slate-500">Deteksi</dt>
-                <dd>{timings.detect.toFixed(0)} ms</dd>
+                <dd className="font-mono font-semibold">{timings.detect.toFixed(0)} ms</dd>
                 <dt className="text-slate-500">Embedding</dt>
-                <dd>{timings.embed.toFixed(0)} ms</dd>
+                <dd className="font-mono font-semibold">{timings.embed.toFixed(0)} ms</dd>
                 <dt className="text-slate-500">Lama scan</dt>
-                <dd>{(timings.total / 1000).toFixed(1)} dtk</dd>
+                <dd className="font-mono font-semibold">{(timings.total / 1000).toFixed(1)} dtk</dd>
                 <dt className="text-slate-500">Liveness</dt>
-                <dd>{livenessPassed === null ? 'tidak diuji' : livenessPassed ? 'lulus' : 'gagal'}</dd>
+                <dd className="font-semibold">{livenessPassed === null ? 'tidak diuji' : livenessPassed ? 'lulus' : 'gagal'}</dd>
             </dl>
 
             <div className="flex flex-wrap gap-2">
@@ -219,11 +231,23 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
             const s2 = ranked[1]?.score ?? -1;
             let verdict;
             if (s1 < threshold) {
-                verdict = { kind: 'nomatch', title: 'Tidak cocok / tidak dikenali', detail: `Skor tertinggi ${s1.toFixed(3)} di bawah ambang ${threshold.toFixed(2)}. Di kiosk, pemilih akan diarahkan ke jalur cadangan.` };
+                verdict = {
+                    kind: 'nomatch',
+                    title: 'Tidak cocok / tidak dikenali',
+                    detail: `Skor tertinggi ${s1.toFixed(3)} di bawah ambang ${threshold.toFixed(2)}. Di kiosk, pemilih akan diarahkan ke jalur cadangan.`,
+                };
             } else if (ranked.length > 1 && s1 - s2 < margin) {
-                verdict = { kind: 'ambiguous', title: `Ambigu: ${ranked[0].label} atau ${ranked[1].label}`, detail: `Selisih skor ${(s1 - s2).toFixed(3)} di bawah margin ${margin.toFixed(2)}. Di kiosk, ini ditolak demi keamanan → jalur cadangan.` };
+                verdict = {
+                    kind: 'ambiguous',
+                    title: `Ambigu: ${ranked[0].label} atau ${ranked[1].label}`,
+                    detail: `Selisih skor ${(s1 - s2).toFixed(3)} di bawah margin ${margin.toFixed(2)}. Di kiosk, ini ditolak demi keamanan → jalur cadangan.`,
+                };
             } else {
-                verdict = { kind: 'match', title: `Cocok: ${ranked[0].label}`, detail: `Skor ${s1.toFixed(3)} ≥ ambang ${threshold.toFixed(2)}${ranked.length > 1 ? `, selisih dengan peringkat 2 = ${(s1 - s2).toFixed(3)}` : ''}.` };
+                verdict = {
+                    kind: 'match',
+                    title: `Cocok: ${ranked[0].label}`,
+                    detail: `Skor ${s1.toFixed(3)} ≥ ambang ${threshold.toFixed(2)}${ranked.length > 1 ? `, selisih dengan peringkat 2 = ${(s1 - s2).toFixed(3)}` : ''}.`,
+                };
             }
             const n = embeddings.length || 1;
             setResult({
@@ -311,8 +335,8 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
             {/* Langkah 1 */}
             <section className="card space-y-4">
                 <div className="flex items-center gap-3">
-                    <span className="flex size-8 items-center justify-center rounded-full bg-brand-700 font-bold text-white">1</span>
-                    <h2 className="text-lg font-bold">Unggah foto acuan</h2>
+                    <span className="flex size-8 items-center justify-center rounded-xl bg-brand-800 text-sm font-extrabold text-white">1</span>
+                    <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Unggah foto acuan</h2>
                 </div>
                 <p className="text-sm text-slate-600">
                     Unggah pas foto orang yang akan diuji (boleh beberapa orang sekaligus untuk menguji pencocokan 1:N). Foto <b>hanya diproses di peramban ini</b> dan tidak dikirim ke server.
@@ -333,13 +357,11 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
                         addFiles(e.dataTransfer.files);
                     }}
                     className={`flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 text-center transition ${
-                        dragOver ? 'border-brand-600 bg-brand-50' : 'border-slate-300 hover:border-brand-500 hover:bg-slate-50'
+                        dragOver ? 'border-brand-600 bg-brand-50' : 'border-slate-300 bg-slate-50/60 hover:border-brand-500 hover:bg-brand-50/30'
                     } ${ready ? '' : 'pointer-events-none opacity-50'}`}
                 >
-                    <svg viewBox="0 0 24 24" className="size-10 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                        <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 4v12M7 9l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span className="font-semibold text-slate-700">Ketuk untuk memilih foto</span>
+                    <IconUpload className="size-9 text-brand-700" />
+                    <span className="font-bold text-slate-800">Ketuk untuk memilih foto</span>
                     <span className="text-xs text-slate-500">atau seret &amp; lepas di sini · JPG/PNG · nama berkas dipakai sebagai nama</span>
                     <input
                         ref={fileInput}
@@ -357,10 +379,15 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
                     <>
                         <ul className="space-y-2">
                             {refs.map((r) => (
-                                <ReferenceCard key={r.id} ref_={r} onRename={(label) => setRefs((rs) => rs.map((x) => (x.id === r.id ? { ...x, label } : x)))} onRemove={() => removeRef(r.id)} />
+                                <ReferenceCard
+                                    key={r.id}
+                                    ref_={r}
+                                    onRename={(label) => setRefs((rs) => rs.map((x) => (x.id === r.id ? { ...x, label } : x)))}
+                                    onRemove={() => removeRef(r.id)}
+                                />
                             ))}
                         </ul>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm font-medium text-slate-600">
                             {validRefs.length} dari {refs.length} foto siap dipakai.
                         </p>
                     </>
@@ -370,29 +397,36 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
             {/* Langkah 2 */}
             <section className="card space-y-4">
                 <div className="flex items-center gap-3">
-                    <span className={`flex size-8 items-center justify-center rounded-full font-bold text-white ${validRefs.length ? 'bg-brand-700' : 'bg-slate-300'}`}>2</span>
-                    <h2 className="text-lg font-bold">Scan wajah</h2>
+                    <span className={`flex size-8 items-center justify-center rounded-xl text-sm font-extrabold text-white ${validRefs.length ? 'bg-brand-800' : 'bg-slate-300'}`}>2</span>
+                    <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Scan wajah</h2>
                 </div>
 
-                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-900">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-brand-950">
                     <video ref={videoRef} className={`mirror h-full w-full object-cover ${scanning ? '' : 'invisible'}`} playsInline muted />
                     {scanning && (
                         <>
                             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                <div className="aspect-[3/4] h-[78%] rounded-[50%] border-4 border-white/80 shadow-[0_0_0_9999px_rgba(15,23,42,0.45)]" />
+                                <div className="aspect-[3/4] h-[78%] rounded-[50%] border-4 border-white/80 shadow-[0_0_0_9999px_rgba(4,13,38,0.48)]" />
                             </div>
-                            <div className="absolute inset-x-0 bottom-0 bg-slate-900/70 p-3 text-center text-white">
-                                <p className="font-semibold">{message}</p>
+                            <div className="absolute inset-x-0 bottom-0 bg-slate-950/75 p-3 text-center text-white backdrop-blur-xs">
+                                <p className="font-bold">{message}</p>
                                 <div className="mx-auto mt-2 h-1.5 max-w-xs rounded-full bg-white/20">
                                     <div className="h-1.5 rounded-full bg-emerald-400 transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
                                 </div>
-                                <p className="mt-1 text-xs text-white/70">{phase === 'liveness' ? 'Tahap 1/2: uji liveness' : `Tahap ${useLiveness && livenessReady ? '2/2' : '1/1'}: memindai wajah`}</p>
+                                <p className="mt-1 text-xs text-white/75">{phase === 'liveness' ? 'Tahap 1/2: uji liveness' : `Tahap ${useLiveness && livenessReady ? '2/2' : '1/1'}: memindai wajah`}</p>
                             </div>
                         </>
                     )}
                     {!scanning && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-slate-300">
-                            {phase === 'result' ? <span>Scan selesai — kamera dimatikan.</span> : validRefs.length ? <span>Siap. Tekan “Mulai scan wajah”.</span> : <span>Unggah minimal satu foto acuan dulu.</span>}
+                            <IconFaceScan className="size-10 text-slate-500" />
+                            {phase === 'result' ? (
+                                <span className="text-sm">Scan selesai — kamera dimatikan.</span>
+                            ) : validRefs.length ? (
+                                <span className="text-sm">Siap. Tekan “Mulai scan wajah”.</span>
+                            ) : (
+                                <span className="text-sm">Unggah minimal satu foto acuan dulu.</span>
+                            )}
                         </div>
                     )}
                 </div>
@@ -400,12 +434,13 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
 
                 {!scanning && phase !== 'result' && (
                     <div className="space-y-3">
-                        <label className={`flex items-center gap-2 text-sm ${livenessReady ? '' : 'opacity-50'}`}>
-                            <input type="checkbox" className="size-5" checked={useLiveness && livenessReady} disabled={!livenessReady} onChange={(e) => setUseLiveness(e.target.checked)} />
+                        <label className={`flex items-center gap-2 text-sm text-slate-700 ${livenessReady ? '' : 'opacity-50'}`}>
+                            <input type="checkbox" className="size-5 rounded accent-brand-700" checked={useLiveness && livenessReady} disabled={!livenessReady} onChange={(e) => setUseLiveness(e.target.checked)} />
                             Sertakan uji liveness (kedip &amp; toleh) seperti di kiosk {!livenessReady && '— model liveness belum termuat'}
                         </label>
-                        <button className="btn-primary w-full text-lg" disabled={!ready || validRefs.length === 0} onClick={beginScan}>
-                            ▶ Mulai scan wajah
+                        <button className="btn-primary w-full text-base" disabled={!ready || validRefs.length === 0} onClick={beginScan}>
+                            <IconFaceScan className="size-5" />
+                            Mulai scan wajah
                         </button>
                     </div>
                 )}
@@ -421,9 +456,9 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
                 )}
                 {phase === 'result' && result && <ResultCard result={result} threshold={threshold} margin={margin} onRescan={beginScan} onSave={saveSamples} />}
 
-                <details className="text-sm text-slate-600">
-                    <summary className="cursor-pointer font-semibold">Tips agar hasil akurat</summary>
-                    <ul className="mt-2 list-disc space-y-1 pl-5">
+                <details className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-sm text-slate-600">
+                    <summary className="cursor-pointer font-bold text-slate-800">Tips agar hasil akurat</summary>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs sm:text-sm">
                         <li>Wajah menghadap sumber cahaya (jangan membelakangi jendela).</li>
                         <li>Jarak ±40–60 cm, wajah memenuhi oval.</li>
                         <li>Lepas masker; kacamata/kerudung boleh, uji juga kondisi tersebut.</li>

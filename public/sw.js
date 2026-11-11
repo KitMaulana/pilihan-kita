@@ -6,7 +6,7 @@
  *  - Halaman (navigasi)                             : network-first, fallback ke cache.
  * Naikkan VERSION bila model diganti agar cache lama dibuang.
  */
-const VERSION = 'v2'; // v2: buang salinan .mjs bertipe salah (text/plain) yang sempat ter-cache
+const VERSION = 'v3'; // v3: cache logo CiptaKita agar selalu tersedia saat offline
 const STATIC_CACHE = `pk-static-${VERSION}`;
 const PAGE_CACHE = `pk-pages-${VERSION}`;
 
@@ -27,7 +27,7 @@ self.addEventListener('fetch', (event) => {
     if (url.origin !== self.location.origin) return;
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/sanctum/')) return; // jangan cache API
 
-    if (url.pathname.startsWith('/models/') || url.pathname.startsWith('/wasm/') || url.pathname.startsWith('/build/')) {
+    if (url.pathname.startsWith('/models/') || url.pathname.startsWith('/wasm/') || url.pathname.startsWith('/build/') || url.pathname === '/ciptakita-logo.png') {
         event.respondWith(
             caches.open(STATIC_CACHE).then(async (cache) => {
                 const needsJs = /\.m?js$/.test(url.pathname);

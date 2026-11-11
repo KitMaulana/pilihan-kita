@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, errorMessage } from '../../lib/api';
 import { number } from '../../lib/format';
 import { useAuth } from '../../features/auth/useAuth';
+import { IconUpload, IconUsers } from '../../components/Icons';
 import { Alert, Badge, EmptyState, Field, Modal, Pagination, Spinner, toast } from '../../components/ui';
 
 function ImportPanel({ onDone }) {
@@ -50,6 +51,10 @@ function ImportPanel({ onDone }) {
 
     return (
         <div className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <IconUpload className="size-5 text-brand-700" />
+                <h2 className="text-base font-extrabold text-slate-900">Impor Data Pemilih (CSV)</h2>
+            </div>
             <form onSubmit={doPreview} className="grid gap-4 sm:grid-cols-[auto_1fr_auto] sm:items-end">
                 <Field label="Jenis">
                     {(id) => (
@@ -60,7 +65,7 @@ function ImportPanel({ onDone }) {
                     )}
                 </Field>
                 <Field label="Berkas CSV (maks. 2.000 baris)">
-                    {(id) => <input id={id} type="file" accept=".csv,text/csv" className="input py-2.5" onChange={(e) => setFile(e.target.files[0] || null)} required />}
+                    {(id) => <input id={id} type="file" accept=".csv,text/csv" className="input py-2" onChange={(e) => setFile(e.target.files[0] || null)} required />}
                 </Field>
                 <button className="btn-primary" disabled={!file || busy}>
                     {busy && !preview ? 'Membaca…' : 'Pratinjau'}
@@ -68,11 +73,11 @@ function ImportPanel({ onDone }) {
             </form>
             <p className="text-xs text-slate-500">
                 Unduh templat:{' '}
-                <a className="text-brand-700 underline" href="/api/v1/panitia/voters/template/student">
+                <a className="font-semibold text-brand-700 underline" href="/api/v1/panitia/voters/template/student">
                     siswa
                 </a>{' '}
                 ·{' '}
-                <a className="text-brand-700 underline" href="/api/v1/panitia/voters/template/teacher">
+                <a className="font-semibold text-brand-700 underline" href="/api/v1/panitia/voters/template/teacher">
                     guru
                 </a>
                 . Tanggal: YYYY-MM-DD atau DD/MM/YYYY. Di Excel, format kolom NISN/NIP sebagai <em>Teks</em> agar nol di depan tidak hilang.
@@ -80,7 +85,7 @@ function ImportPanel({ onDone }) {
             {error && <Alert type="danger">{error}</Alert>}
 
             {preview && (
-                <div className="space-y-4">
+                <div className="space-y-4 border-t border-slate-100 pt-4">
                     <div className="flex flex-wrap gap-2 text-sm">
                         <Badge color="blue">Total {preview.summary.total}</Badge>
                         <Badge color="green">Siap {preview.summary.ready}</Badge>
@@ -91,7 +96,7 @@ function ImportPanel({ onDone }) {
 
                     {preview.problems.length > 0 && (
                         <div>
-                            <h3 className="mb-2 font-semibold text-red-700">Baris bermasalah (tidak akan diimpor)</h3>
+                            <h3 className="mb-2 text-sm font-bold text-crimson-700">Baris bermasalah (tidak akan diimpor)</h3>
                             <div className="table-wrap">
                                 <table className="data-table">
                                     <thead>
@@ -104,11 +109,11 @@ function ImportPanel({ onDone }) {
                                     </thead>
                                     <tbody>
                                         {preview.problems.map((p, i) => (
-                                            <tr key={i} className="bg-red-50/50">
+                                            <tr key={i} className="bg-crimson-50/40">
                                                 <td>{p.line}</td>
-                                                <td className="font-mono">{p.identifier || p.raw?.nisn || p.raw?.nip || '—'}</td>
+                                                <td className="font-mono text-xs">{p.identifier || p.raw?.nisn || p.raw?.nip || '—'}</td>
                                                 <td>{p.name || '—'}</td>
-                                                <td className="text-red-700">{p.errors.join('; ')}</td>
+                                                <td className="text-xs text-crimson-700">{p.errors.join('; ')}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -118,7 +123,7 @@ function ImportPanel({ onDone }) {
                     )}
 
                     <div>
-                        <h3 className="mb-2 font-semibold text-emerald-700">Baris siap</h3>
+                        <h3 className="mb-2 text-sm font-bold text-emerald-700">Baris siap</h3>
                         <div className="table-wrap">
                             <table className="data-table">
                                 <thead>
@@ -135,10 +140,10 @@ function ImportPanel({ onDone }) {
                                     {rows.map((r) => (
                                         <tr key={r.line}>
                                             <td>{r.line}</td>
-                                            <td className="font-mono">{r.identifier || '—'}</td>
-                                            <td>{r.name}</td>
+                                            <td className="font-mono text-xs">{r.identifier || '—'}</td>
+                                            <td className="font-medium">{r.name}</td>
                                             <td>{r.class_name || r.distinguisher || '—'}</td>
-                                            <td>{r.birth_date}</td>
+                                            <td className="font-mono text-xs">{r.birth_date}</td>
                                             <td>{r.action === 'baru' ? <Badge color="green">baru</Badge> : <Badge color="yellow">perbarui</Badge>}</td>
                                         </tr>
                                     ))}
@@ -228,8 +233,8 @@ function EditVoter({ voter, onClose }) {
                     </Field>
                 )}
                 <Field label="Tanggal lahir">{(id) => <input id={id} type="date" className="input" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />}</Field>
-                <label className="flex items-center gap-2">
-                    <input type="checkbox" className="size-5" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox" className="size-5 rounded accent-brand-700" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
                     Pemilih aktif (berhak memilih)
                 </label>
                 {error && <Alert type="danger">{error}</Alert>}
@@ -321,7 +326,7 @@ function AddVoter({ classes, onClose, onSaved }) {
                     submit(true);
                 }}
             >
-                <div role="radiogroup" aria-label="Jenis pemilih" className="grid grid-cols-2 gap-2">
+                <div role="radiogroup" aria-label="Jenis pemilih" className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
                     {[
                         ['student', 'Siswa'],
                         ['teacher', 'Guru / staf'],
@@ -335,7 +340,9 @@ function AddVoter({ classes, onClose, onSaved }) {
                                 setForm({ ...form, type: v });
                                 setErrors({});
                             }}
-                            className={`min-h-12 rounded-xl border-2 px-3 font-semibold transition ${form.type === v ? 'border-brand-700 bg-brand-50 text-brand-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                            className={`min-h-11 rounded-xl px-3 text-sm font-bold transition ${
+                                form.type === v ? 'bg-brand-800 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                            }`}
                         >
                             {l}
                         </button>
@@ -382,7 +389,7 @@ function AddVoter({ classes, onClose, onSaved }) {
                 </Field>
                 <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />
                 {error && <Alert type="danger">{error}</Alert>}
-                {count > 0 && <p className="text-sm text-emerald-700">{count} pemilih sudah ditambahkan di sesi ini.</p>}
+                {count > 0 && <p className="text-sm font-medium text-emerald-700">{count} pemilih sudah ditambahkan di sesi ini.</p>}
             </form>
         </Modal>
     );
@@ -415,13 +422,18 @@ export default function Pemilih() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <h1 className="text-2xl font-bold text-slate-900">Pemilih</h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Daftar Pemilih</h1>
+                    <p className="mt-0.5 text-sm text-slate-500">Kelola data siswa &amp; guru, status pendaftaran wajah, serta pembukaan kunci akun.</p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                     <button className="btn-primary" onClick={() => setAdding(true)}>
+                        <IconUsers className="size-4" />
                         + Tambah pemilih
                     </button>
                     <button className="btn-secondary" onClick={() => setShowImport(!showImport)}>
+                        <IconUpload className="size-4" />
                         {showImport ? 'Tutup impor' : 'Impor CSV (massal)'}
                     </button>
                 </div>
@@ -463,11 +475,16 @@ export default function Pemilih() {
                             <option key={c}>{c}</option>
                         ))}
                     </select>
-                    <select className="input" value={filters.face || filters.status} onChange={(e) => {
-                        const v = e.target.value;
-                        const isFace = ['yes', 'no', 'duplicate'].includes(v);
-                        setFilters({ ...filters, face: isFace ? v : '', status: isFace ? '' : v, page: 1 });
-                    }} aria-label="Status">
+                    <select
+                        className="input"
+                        value={filters.face || filters.status}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            const isFace = ['yes', 'no', 'duplicate'].includes(v);
+                            setFilters({ ...filters, face: isFace ? v : '', status: isFace ? '' : v, page: 1 });
+                        }}
+                        aria-label="Status"
+                    >
                         <option value="">Semua status</option>
                         <option value="no">Belum terdaftar wajah</option>
                         <option value="yes">Sudah terdaftar wajah</option>
@@ -481,7 +498,7 @@ export default function Pemilih() {
 
                 <div className="mt-4">
                     {list.isLoading ? (
-                        <Spinner label="Memuat…" />
+                        <Spinner label="Memuat data pemilih…" />
                     ) : list.data?.data.length === 0 ? (
                         <EmptyState>Tidak ada pemilih yang cocok.</EmptyState>
                     ) : (
@@ -501,16 +518,18 @@ export default function Pemilih() {
                                 <tbody>
                                     {list.data?.data.map((v) => (
                                         <tr key={v.id} className={v.is_active ? '' : 'opacity-50'}>
-                                            <td className="font-medium">{v.name}</td>
+                                            <td className="font-semibold text-slate-900">{v.name}</td>
                                             <td className="font-mono text-xs">{v.identifier || (v.distinguisher ? `kode ${v.distinguisher}` : '— (tanpa NIP)')}</td>
                                             <td>{v.type === 'teacher' ? 'Guru' : v.class_name}</td>
-                                            <td>{v.birth_date}</td>
+                                            <td className="font-mono text-xs">{v.birth_date}</td>
                                             <td>
                                                 {v.face?.registered ? (
                                                     v.face.duplicate_of_voter_id ? (
                                                         <Badge color="red">Ganda? ({v.face.duplicate_score})</Badge>
                                                     ) : (
-                                                        <Badge color="green">Terdaftar</Badge>
+                                                        <Badge color="green" dot>
+                                                            Terdaftar
+                                                        </Badge>
                                                     )
                                                 ) : (
                                                     <Badge>Belum</Badge>

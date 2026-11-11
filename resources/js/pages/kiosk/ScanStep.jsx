@@ -4,6 +4,7 @@ import { useCamera } from '../../features/face/useCamera';
 import { analyzeFrame, createLivenessSession, CHALLENGE_TEXT } from '../../features/face/liveness';
 import { detectFaces, embedFace } from '../../features/face/faceEngine';
 import { MODEL_VERSION, QUALITY } from '../../features/face/config';
+import { IconFaceScan, IconKey, IconShieldCheck } from '../../components/Icons';
 import { useKiosk } from './kioskStore';
 
 const STABLE_FRAMES = 10;
@@ -115,7 +116,12 @@ export default function ScanStep({ requireLiveness = true }) {
         } catch (err) {
             const code = errorCode(err);
             if (code === 'already_voted' || code === 'not_eligible' || code === 'voting_closed') {
-                showMessage({ tone: code === 'already_voted' ? 'info' : 'danger', title: code === 'already_voted' ? 'Sudah memilih' : 'Tidak dapat melanjutkan', text: errorMessage(err), actions: ['home'] });
+                showMessage({
+                    tone: code === 'already_voted' ? 'info' : 'danger',
+                    title: code === 'already_voted' ? 'Sudah memilih' : 'Tidak dapat melanjutkan',
+                    text: errorMessage(err),
+                    actions: ['home'],
+                });
                 return;
             }
             fail(errorMessage(err), code === 'liveness_failed' ? 'liveness' : 'retry');
@@ -134,51 +140,109 @@ export default function ScanStep({ requireLiveness = true }) {
     }
 
     const camError = status === 'denied' || status === 'unavailable' || status === 'error';
+    const ovalRing =
+        phase === 'liveness'
+            ? 'border-accent-400 shadow-[0_0_32px_rgba(251,191,36,0.45),0_0_0_9999px_rgba(4,13,38,0.45)]'
+            : phase === 'identifying'
+              ? 'border-emerald-400 shadow-[0_0_32px_rgba(52,211,153,0.55),0_0_0_9999px_rgba(4,13,38,0.45)]'
+              : 'border-white/80 shadow-[0_0_0_9999px_rgba(4,13,38,0.38)]';
+
+    const statusBadge =
+        phase === 'liveness'
+            ? { dot: 'bg-accent-400', label: 'Verifikasi Gerakan' }
+            : phase === 'identifying'
+              ? { dot: 'bg-emerald-400', label: 'Mencocokkan Wajah' }
+              : { dot: 'bg-brand-400', label: 'Siap Memindai' };
 
     return (
-        <div className="flex flex-1 flex-col items-center gap-4 px-4 pb-6 lg:flex-row lg:items-stretch lg:justify-center lg:gap-8">
-            <div className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-3xl bg-black shadow-2xl lg:max-w-lg">
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 p-4 lg:flex-row lg:items-stretch lg:gap-8 lg:p-6">
+            {/* Viewport Kamera */}
+            <div className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-3xl border border-white/20 bg-slate-950 shadow-2xl lg:max-w-lg">
                 <video ref={videoRef} className="mirror h-full w-full object-cover" playsInline muted aria-label="Pratinjau kamera" />
-                {/* Panduan oval */}
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <div
-                        className={`h-[62%] w-[62%] rounded-[50%] border-4 transition-colors ${
-                            phase === 'liveness' ? 'border-accent-400' : phase === 'identifying' ? 'border-emerald-400' : 'border-white/70'
-                        }`}
-                    />
+
+                {/* Top status HUD */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/65 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
+                        <span className={`size-2 animate-pulse rounded-full ${statusBadge.dot}`} />
+                        {statusBadge.label}
+                    </span>
+                    <span className="rounded-full border border-white/15 bg-slate-950/65 px-2.5 py-1 text-[11px] font-medium text-brand-100 backdrop-blur-md">
+                        Lokal
+                    </span>
                 </div>
+
+                {/* Panduan oval + scan beam */}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div className={`relative h-[62%] w-[62%] overflow-hidden rounded-[50%] border-4 transition-all duration-300 ${ovalRing}`}>
+                        {(phase === 'liveness' || phase === 'identifying') && (
+                            <div className="animate-scan-beam absolute inset-x-0 top-1/2 h-1 bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+                        )}
+                    </div>
+                </div>
+
                 {camError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/90 p-6 text-center">
-                        <p>{error}</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-brand-950/95 p-6 text-center">
+                        <IconFaceScan className="size-12 text-crimson-400" />
+                        <p className="text-base font-semibold text-white">{error}</p>
+                        <button className="btn bg-white text-brand-900 hover:bg-brand-50" onClick={goFallback}>
+                            Gunakan NISN / NIP
+                        </button>
                     </div>
                 )}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-center">
-                    <p className="text-xl font-bold sm:text-2xl" aria-live="assertive">
+
+                {/* Bottom Instruction HUD */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-transparent px-4 pt-10 pb-5 text-center">
+                    <p className="text-xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-2xl" aria-live="assertive">
                         {hint}
                     </p>
                     {phase === 'liveness' && (
                         <div className="mt-3 flex justify-center gap-2" aria-hidden="true">
                             {Array.from({ length: progress.total }).map((_, i) => (
-                                <span key={i} className={`h-2 w-10 rounded-full ${i < progress.index ? 'bg-emerald-400' : 'bg-white/30'}`} />
+                                <span
+                                    key={i}
+                                    className={`h-2 w-12 rounded-full transition-all ${i < progress.index ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]' : 'bg-white/25'}`}
+                                />
                             ))}
                         </div>
                     )}
                 </div>
             </div>
 
+            {/* Panel Panduan & Jalur Alternatif */}
             <aside className="flex w-full max-w-md flex-col justify-center gap-4 lg:max-w-sm">
-                <div className="rounded-2xl bg-white/10 p-5">
-                    <h1 className="text-2xl font-extrabold">Selamat datang!</h1>
-                    <ol className="mt-3 list-decimal space-y-1 pl-5 text-brand-100">
-                        <li>Lepaskan masker/kacamata hitam, hadap kamera.</li>
-                        <li>Ikuti instruksi: {CHALLENGE_TEXT.blink.toLowerCase()} dan tolehkan kepala.</li>
-                        <li>Pastikan nama Anda benar, lalu pilih kandidat.</li>
+                <div className="rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-xl">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold tracking-wider text-brand-100 uppercase">
+                        <IconFaceScan className="size-4 text-accent-400" /> Check-in Pemilih
+                    </div>
+                    <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Selamat datang!</h1>
+                    <ol className="mt-4 space-y-3 text-sm text-brand-100 sm:text-base">
+                        {[
+                            'Lepaskan masker atau kacamata hitam, lalu hadap lurus ke kamera.',
+                            `Ikuti instruksi di layar: ${CHALLENGE_TEXT.blink.toLowerCase()} dan tolehkan kepala.`,
+                            'Pastikan nama & kelas benar, lalu masuk ke bilik suara.',
+                        ].map((txt, idx) => (
+                            <li key={idx} className="flex items-start gap-3">
+                                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 font-mono text-xs font-bold text-white">
+                                    {idx + 1}
+                                </span>
+                                <span className="leading-snug">{txt}</span>
+                            </li>
+                        ))}
                     </ol>
                 </div>
-                <button className="btn min-h-16 border-2 border-white/60 text-lg text-white hover:bg-white/10" onClick={goFallback}>
+
+                <button
+                    className="btn min-h-16 rounded-2xl border-2 border-white/40 bg-white/10 text-lg font-bold text-white backdrop-blur-md transition hover:border-white/70 hover:bg-white/20 active:scale-[0.99]"
+                    onClick={goFallback}
+                >
+                    <IconKey className="size-5 text-accent-400" />
                     Gunakan NISN / NIP
                 </button>
-                <p className="text-center text-xs text-brand-200">Tablet tidak menyimpan foto Anda. Hanya angka (vektor) yang dikirim ke server.</p>
+
+                <div className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-brand-950/40 px-4 py-2.5 text-center text-xs text-brand-200">
+                    <IconShieldCheck className="size-4 shrink-0 text-emerald-400" />
+                    <span>Tablet tidak menyimpan foto Anda. Hanya vektor angka yang dikirim ke server sekolah.</span>
+                </div>
             </aside>
         </div>
     );

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { kiosk, errorCode, errorMessage } from '../../lib/api';
+import { BrandLogo } from '../../components/BrandLogo';
+import { IconKey } from '../../components/Icons';
 import { useKiosk } from './kioskStore';
 import { useIdleReset } from './useCountdown';
 
@@ -51,7 +53,12 @@ export default function CadanganForm() {
         } catch (err) {
             const c = errorCode(err);
             if (c === 'already_voted' || c === 'locked' || c === 'not_eligible') {
-                showMessage({ tone: c === 'already_voted' ? 'info' : 'danger', title: c === 'already_voted' ? 'Sudah memilih' : 'Tidak dapat melanjutkan', text: errorMessage(err), actions: ['home'] });
+                showMessage({
+                    tone: c === 'already_voted' ? 'info' : 'danger',
+                    title: c === 'already_voted' ? 'Sudah memilih' : 'Tidak dapat melanjutkan',
+                    text: errorMessage(err),
+                    actions: ['home'],
+                });
                 return;
             }
             if (c === 'ambiguous_identity') setNeedCode(true);
@@ -71,7 +78,9 @@ export default function CadanganForm() {
                 setIdentifier('');
                 setError(null);
             }}
-            className={`btn flex-1 text-lg ${type === value ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-700'}`}
+            className={`min-h-12 flex-1 rounded-xl px-4 text-base font-bold transition ${
+                type === value ? 'bg-brand-800 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
         >
             {label}
         </button>
@@ -79,19 +88,29 @@ export default function CadanganForm() {
 
     return (
         <div className="flex flex-1 items-start justify-center p-4 sm:items-center">
-            <form onSubmit={submit} className="w-full max-w-xl rounded-3xl bg-white p-5 text-slate-900 shadow-2xl sm:p-8" autoComplete="off">
-                <h1 className="text-2xl font-extrabold">Masuk dengan nomor induk</h1>
-                <p className="mt-1 text-slate-600">Jalur ini setara dengan pengenalan wajah. Setiap percobaan dicatat.</p>
+            <form onSubmit={submit} className="w-full max-w-xl rounded-3xl border border-white/20 bg-white p-5 text-slate-900 shadow-2xl sm:p-8" autoComplete="off">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div className="flex items-center gap-3">
+                        <span className="flex size-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                            <IconKey className="size-6" />
+                        </span>
+                        <div>
+                            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Masuk dengan Nomor Induk</h1>
+                            <p className="text-xs text-slate-500 sm:text-sm">Jalur setara pengenalan wajah · setiap percobaan dicatat</p>
+                        </div>
+                    </div>
+                    <BrandLogo variant="mark" size="sm" className="hidden sm:inline-flex" />
+                </div>
 
-                <div className="mt-5 flex gap-2" role="tablist">
+                <div className="mt-5 flex gap-1.5 rounded-2xl bg-slate-100 p-1.5" role="tablist">
                     {tab('student', 'Siswa')}
-                    {tab('teacher', 'Guru')}
+                    {tab('teacher', 'Guru / Staf')}
                 </div>
 
                 <div className="mt-5 space-y-4">
                     {type === 'teacher' && (
-                        <label className="flex min-h-12 items-center gap-3 text-base">
-                            <input type="checkbox" className="size-6" checked={noNip} onChange={(e) => setNoNip(e.target.checked)} />
+                        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-base font-medium text-slate-700">
+                            <input type="checkbox" className="size-5 rounded accent-brand-700" checked={noNip} onChange={(e) => setNoNip(e.target.checked)} />
                             Saya tidak memiliki NIP
                         </label>
                     )}
@@ -103,12 +122,13 @@ export default function CadanganForm() {
                             </label>
                             <input
                                 id="fb-id"
-                                className="input min-h-16 text-center font-mono text-2xl tracking-widest"
+                                className="input min-h-16 text-center font-mono text-2xl font-bold tracking-[0.18em]"
                                 inputMode="numeric"
                                 pattern="[0-9 ]*"
                                 maxLength={type === 'student' ? 10 : 21}
                                 value={identifier}
                                 onChange={(e) => setIdentifier(e.target.value.replace(/[^\d ]/g, ''))}
+                                placeholder={type === 'student' ? '0071234567' : '198001012005011001'}
                                 autoFocus
                             />
                         </div>
@@ -133,8 +153,8 @@ export default function CadanganForm() {
 
                     <fieldset>
                         <legend className="label text-base">Tanggal lahir</legend>
-                        <div className="grid grid-cols-[1fr_2fr_1.4fr] gap-2">
-                            <select className="input min-h-14 text-lg" value={dob.d} onChange={(e) => setDob({ ...dob, d: e.target.value })} aria-label="Tanggal">
+                        <div className="grid grid-cols-[1fr_1.8fr_1.3fr] gap-2">
+                            <select className="input min-h-14 text-base sm:text-lg" value={dob.d} onChange={(e) => setDob({ ...dob, d: e.target.value })} aria-label="Tanggal">
                                 <option value="">Tgl</option>
                                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                                     <option key={d} value={d}>
@@ -142,7 +162,7 @@ export default function CadanganForm() {
                                     </option>
                                 ))}
                             </select>
-                            <select className="input min-h-14 text-lg" value={dob.m} onChange={(e) => setDob({ ...dob, m: e.target.value })} aria-label="Bulan">
+                            <select className="input min-h-14 text-base sm:text-lg" value={dob.m} onChange={(e) => setDob({ ...dob, m: e.target.value })} aria-label="Bulan">
                                 <option value="">Bulan</option>
                                 {MONTHS.map((m, i) => (
                                     <option key={m} value={i + 1}>
@@ -150,7 +170,7 @@ export default function CadanganForm() {
                                     </option>
                                 ))}
                             </select>
-                            <select className="input min-h-14 text-lg" value={dob.y} onChange={(e) => setDob({ ...dob, y: e.target.value })} aria-label="Tahun">
+                            <select className="input min-h-14 text-base sm:text-lg" value={dob.y} onChange={(e) => setDob({ ...dob, y: e.target.value })} aria-label="Tahun">
                                 <option value="">Tahun</option>
                                 {years.map((y) => (
                                     <option key={y} value={y}>
@@ -162,17 +182,17 @@ export default function CadanganForm() {
                     </fieldset>
 
                     {error && (
-                        <p className="rounded-xl bg-red-50 p-3 text-red-800" role="alert">
+                        <p className="rounded-xl border border-crimson-200 bg-crimson-50 p-3.5 text-sm font-medium text-crimson-800" role="alert">
                             {error}
                         </p>
                     )}
                 </div>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    <button className="btn-primary min-h-16 text-xl" disabled={!valid || busy}>
+                    <button className="btn-primary min-h-14 text-lg" disabled={!valid || busy}>
                         {busy ? 'Memeriksa…' : 'Lanjut'}
                     </button>
-                    <button type="button" className="btn-secondary min-h-16 text-xl" onClick={reset}>
+                    <button type="button" className="btn-secondary min-h-14 text-lg" onClick={reset}>
                         Batal
                     </button>
                 </div>

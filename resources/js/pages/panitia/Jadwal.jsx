@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../../lib/api';
 import { formatDateTime, fromWibInput, STATUS_LABEL, toWibInput } from '../../lib/format';
 import { useAuth } from '../../features/auth/useAuth';
+import { IconCalendarClock, IconCheckCircle, IconPrinter, IconShieldCheck } from '../../components/Icons';
 import { Alert, Badge, Field, Spinner, toast, TypedConfirm } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
 
@@ -24,11 +25,11 @@ function CreateElection() {
         onError: (e) => toast.error(errorMessage(e)),
     });
     return (
-        <section className="card space-y-3">
-            <h2 className="font-bold">Buat pemilihan baru</h2>
+        <section className="card space-y-4">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Buat pemilihan baru</h2>
             <Field label="Nama pemilihan">{(id) => <input id={id} className="input" value={name} onChange={(e) => setName(e.target.value)} />}</Field>
             <button className="btn-primary" onClick={() => m.mutate()} disabled={m.isPending || !name}>
-                Buat
+                Buat pemilihan
             </button>
         </section>
     );
@@ -71,7 +72,11 @@ function SettingsForm({ election }) {
 
     return (
         <section className="card space-y-5">
-            <h2 className="font-bold">Jadwal & pengaturan</h2>
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <IconCalendarClock className="size-5 text-brand-700" />
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Jadwal &amp; Pengaturan</h2>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                     <Field label="Nama pemilihan">{(id) => <input id={id} className="input" value={form.name} disabled={locked} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
@@ -84,8 +89,8 @@ function SettingsForm({ election }) {
                 </Field>
             </div>
 
-            <fieldset className="grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-3" disabled={settingsLocked}>
-                <legend className="mb-2 text-sm font-semibold text-slate-700">Aturan pengenalan wajah {settingsLocked && '(terkunci)'}</legend>
+            <fieldset className="grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-3" disabled={settingsLocked}>
+                <legend className="mb-2 text-sm font-bold text-slate-800">Aturan pengenalan wajah &amp; ledger {settingsLocked && '(terkunci)'}</legend>
                 <Field label="Ambang kecocokan (cosine)" hint="Kalibrasi dari halaman Uji Wajah.">
                     {(id) => <input id={id} type="number" step="0.01" min="0.2" max="0.95" className="input" value={s.match_threshold} onChange={setS('match_threshold')} />}
                 </Field>
@@ -104,17 +109,17 @@ function SettingsForm({ election }) {
                 <Field label="Ukuran batch segel ledger" hint="Hanya mengacak urutan ledger; hasil langsung tetap real-time.">
                     {(id) => <input id={id} type="number" min="1" max="100" className="input" value={s.seal_batch_size} onChange={setS('seal_batch_size')} />}
                 </Field>
-                <label className="flex items-center gap-2 self-end pb-3">
-                    <input type="checkbox" className="size-5" checked={!!s.require_liveness} onChange={setS('require_liveness')} />
+                <label className="flex items-center gap-2.5 self-end pb-3 text-sm font-medium text-slate-700">
+                    <input type="checkbox" className="size-5 rounded accent-brand-700" checked={!!s.require_liveness} onChange={setS('require_liveness')} />
                     Wajibkan liveness (kedip/toleh)
                 </label>
             </fieldset>
 
             {error && <Alert type="danger">{error}</Alert>}
             {!locked && (
-                <div className="flex justify-end">
+                <div className="flex justify-end border-t border-slate-100 pt-4">
                     <button className="btn-primary" onClick={() => save.mutate()} disabled={save.isPending}>
-                        {save.isPending ? 'Menyimpan…' : 'Simpan'}
+                        {save.isPending ? 'Menyimpan…' : 'Simpan pengaturan'}
                     </button>
                 </div>
             )}
@@ -128,24 +133,30 @@ const STEPS = ['draft', 'open', 'closed', 'published'];
 function StatusStepper({ status }) {
     const current = status ? STEPS.indexOf(status) : -1;
     return (
-        <ol className="grid grid-cols-4 gap-1" aria-label="Tahapan pemilihan">
+        <ol className="grid grid-cols-4 gap-1 rounded-2xl border border-slate-100 bg-slate-50/70 p-4" aria-label="Tahapan pemilihan">
             {STEPS.map((s, i) => {
                 const done = i < current;
                 const active = i === current;
                 return (
-                    <li key={s} className="flex flex-col items-center gap-1 text-center" aria-current={active ? 'step' : undefined}>
+                    <li key={s} className="flex flex-col items-center gap-1.5 text-center" aria-current={active ? 'step' : undefined}>
                         <div className="flex w-full items-center">
-                            <span className={`h-1 flex-1 rounded ${i === 0 ? 'invisible' : i <= current ? 'bg-brand-600' : 'bg-slate-200'}`} />
+                            <span className={`h-1 flex-1 rounded-full ${i === 0 ? 'invisible' : i <= current ? 'bg-brand-600' : 'bg-slate-200'}`} />
                             <span
-                                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                                    active ? 'bg-brand-700 text-white ring-4 ring-brand-100' : done ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-500'
+                                className={`flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-extrabold transition ${
+                                    active
+                                        ? 'bg-brand-800 text-white ring-4 ring-brand-200'
+                                        : done
+                                          ? 'bg-emerald-600 text-white'
+                                          : 'bg-slate-200 text-slate-500'
                                 }`}
                             >
                                 {done ? '✓' : i + 1}
                             </span>
-                            <span className={`h-1 flex-1 rounded ${i === STEPS.length - 1 ? 'invisible' : i < current ? 'bg-brand-600' : 'bg-slate-200'}`} />
+                            <span className={`h-1 flex-1 rounded-full ${i === STEPS.length - 1 ? 'invisible' : i < current ? 'bg-brand-600' : 'bg-slate-200'}`} />
                         </div>
-                        <span className={`text-xs sm:text-sm ${active ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{STATUS_LABEL[s]}</span>
+                        <span className={`text-xs sm:text-sm ${active ? 'font-extrabold text-brand-900' : done ? 'font-semibold text-emerald-700' : 'font-medium text-slate-500'}`}>
+                            {STATUS_LABEL[s]}
+                        </span>
                     </li>
                 );
             })}
@@ -178,7 +189,8 @@ function StatusPanel({ election }) {
         const r = data.results;
         const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
         const rows = r.candidates.map((c) => `<tr><td>${c.number}</td><td>${esc(c.name)}</td><td style="text-align:right">${c.votes}</td><td style="text-align:right">${c.percent}%</td></tr>`).join('');
-        w.document.write(`<html><head><title>Laporan ${esc(r.election.name)}</title><style>body{font-family:sans-serif;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:6px}code{word-break:break-all}</style></head><body>
+        w.document.write(`<html><head><title>Laporan ${esc(r.election.name)}</title><style>body{font-family:sans-serif;padding:24px;color:#0f172a}.brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c2668;padding-bottom:12px;margin-bottom:18px}.brand img{height:44px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:8px}th{background:#f1f5f9}code{word-break:break-all}</style></head><body>
+<div class="brand"><img src="/ciptakita-logo.png" alt="CiptaKita.id" /><div style="text-align:right;font-size:12px;color:#475569"><b>Pilihan Kita</b><br>E-Voting OSIS SMAN 1 Ciruas</div></div>
 <h2>Laporan Hasil — ${esc(r.election.name)}</h2><p>Status: ${STATUS_LABEL[r.election.status]} · Dibuat: ${formatDateTime(data.generated_at)}</p>
 <table><tr><th>No</th><th>Kandidat</th><th>Suara</th><th>%</th></tr>${rows}</table>
 <p>Partisipasi: siswa ${r.participation.students.voted}/${r.participation.students.total}, guru ${r.participation.teachers.voted}/${r.participation.teachers.total}, total ${r.participation.all.voted}/${r.participation.all.total}.</p>
@@ -216,12 +228,16 @@ function StatusPanel({ election }) {
     ];
 
     return (
-        <section className="card space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-bold">Status pemilihan</h2>
-                <Badge color={election.status === 'open' ? 'green' : election.status === 'closed' ? 'red' : 'gray'}>{STATUS_LABEL[election.status]}</Badge>
-                {election.is_simulation && <Badge color="yellow">SIMULASI</Badge>}
-                <span className="text-sm text-slate-500">· {election.votes_count ?? 0} suara masuk</span>
+        <section className="card space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Status Pemilihan</h2>
+                    <Badge color={election.status === 'open' ? 'green' : election.status === 'closed' ? 'red' : election.status === 'published' ? 'blue' : 'gray'} dot={election.status === 'open'}>
+                        {STATUS_LABEL[election.status]}
+                    </Badge>
+                    {election.is_simulation && <Badge color="yellow">SIMULASI</Badge>}
+                </div>
+                <span className="font-mono text-xs font-semibold text-slate-500">{election.votes_count ?? 0} suara masuk</span>
             </div>
 
             <StatusStepper status={election.status} />
@@ -239,38 +255,48 @@ function StatusPanel({ election }) {
                     Pemilihan masih draf. Anda bisa <b>membukanya</b> (perlu minimal satu kandidat aktif) atau <b>menutupnya</b> langsung — mis. untuk membatalkan draf, meskipun belum ada data apa pun.
                 </p>
             )}
-            <div className="grid gap-2 sm:grid-cols-3">
+
+            <div className="grid gap-3 sm:grid-cols-3">
                 {actions.map((a) => (
                     <div key={a.to}>
                         <button className={`${a.cls} w-full`} disabled={a.disabled} onClick={() => setTarget(a.to)} title={a.disabled ? a.why : undefined}>
                             {a.label}
                         </button>
-                        {a.disabled && <p className="mt-1 text-xs text-slate-500">{a.why}</p>}
+                        {a.disabled && <p className="mt-1.5 text-xs text-slate-500">{a.why}</p>}
                     </div>
                 ))}
             </div>
+
             <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                 <button className="btn-secondary btn-sm" onClick={() => verify.refetch()}>
+                    <IconShieldCheck className="size-4" />
                     Verifikasi ledger
                 </button>
                 <button className="btn-secondary btn-sm" onClick={printReport}>
+                    <IconPrinter className="size-4" />
                     Cetak laporan
                 </button>
             </div>
+
             {verify.data && (
                 <Alert type={verify.data.ok ? 'success' : 'danger'} title={verify.data.ok ? 'Ledger valid' : 'Ledger TIDAK valid'}>
                     {verify.data.sealed} tersegel · {verify.data.pending} menunggu · {verify.data.votes} suara · {verify.data.turnout} penanda sudah memilih
-                    {verify.data.head && <code className="mt-1 block text-xs break-all">{verify.data.head}</code>}
+                    {verify.data.head && <code className="mt-1.5 block rounded-lg bg-white/80 p-2 font-mono text-xs break-all">{verify.data.head}</code>}
                     {verify.data.errors?.map((e) => (
                         <div key={e}>• {e}</div>
                     ))}
                 </Alert>
             )}
             {election.ledger_head_hash && election.status === 'published' && (
-                <p className="text-sm text-slate-600">
-                    Hash terakhir dipublikasikan: <code className="break-all">{election.ledger_head_hash}</code>
-                </p>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950">
+                    <p className="flex items-center gap-1.5 font-bold">
+                        <IconCheckCircle className="size-4 text-emerald-600" />
+                        Hash terakhir dipublikasikan:
+                    </p>
+                    <code className="mt-1 block font-mono break-all text-slate-700">{election.ledger_head_hash}</code>
+                </div>
             )}
+
             {target && (
                 <TypedConfirm
                     open
@@ -317,11 +343,10 @@ function SimulationPanel({ election }) {
         onError: (e) => toast.error(errorMessage(e)),
     });
     return (
-        <section className="card space-y-3">
-            <h2 className="font-bold">Mode simulasi (gladi bersih)</h2>
+        <section className="card space-y-4">
+            <h2 className="text-base font-extrabold text-slate-900">Mode simulasi (gladi bersih)</h2>
             <p className="text-sm text-slate-600">
-                Membuat pemilihan percobaan + pemilih palsu (NISN 99xxxxxxxx, tgl lahir 2008-01-01) yang terpisah dari data nyata. Untuk uji wajah, daftarkan foto relawan ke pemilih simulasi.
-                Hapus bersih sebelum hari-H.
+                Membuat pemilihan percobaan + pemilih palsu (NISN 99xxxxxxxx, tgl lahir 2008-01-01) yang terpisah dari data nyata. Untuk uji wajah, daftarkan foto relawan ke pemilih simulasi. Hapus bersih sebelum hari-H.
             </p>
             <div className="flex flex-wrap items-end gap-2">
                 <Field label="Jumlah pemilih palsu">{(id) => <input id={id} type="number" min="1" max="2000" className="input w-36" value={voters} onChange={(e) => setVoters(Number(e.target.value))} />}</Field>
@@ -357,19 +382,18 @@ function ResetVotesPanel({ election }) {
     const published = election?.status === 'published';
 
     return (
-        <section className="card space-y-3 border-amber-200">
-            <h2 className="font-bold text-amber-900">Reset suara (uji coba)</h2>
+        <section className="card space-y-3 border-amber-200 bg-amber-50/20">
+            <h2 className="text-base font-extrabold text-amber-900">Reset suara (uji coba)</h2>
             <p className="text-sm text-slate-600">
-                Menghapus <b>semua suara</b> pemilihan ini beserta ledger-nya, lalu mengembalikan semua pemilih ke status <b>belum memilih</b>. Data pemilih, kandidat, template wajah,
-                jadwal, dan status pemilihan <b>tidak</b> berubah. Gunakan setelah uji coba, sebelum pemungutan suara sungguhan dimulai.
+                Menghapus <b>semua suara</b> pemilihan ini beserta ledger-nya, lalu mengembalikan semua pemilih ke status <b>belum memilih</b>. Data pemilih, kandidat, template wajah, jadwal, dan status pemilihan <b>tidak</b> berubah. Gunakan setelah uji coba, sebelum pemungutan suara sungguhan dimulai.
             </p>
             {election && (
                 <p className="text-sm">
-                    Suara saat ini: <b>{election.votes_count ?? 0}</b>
+                    Suara saat ini: <b className="font-mono">{election.votes_count ?? 0}</b>
                 </p>
             )}
-            <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" className="size-5" checked={clearAttempts} onChange={(e) => setClearAttempts(e.target.checked)} />
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" className="size-5 rounded accent-brand-700" checked={clearAttempts} onChange={(e) => setClearAttempts(e.target.checked)} />
                 Hapus juga log percobaan akses &amp; buka kunci pemilih yang terkunci
             </label>
             {published && <Alert type="warning">Hasil sudah dipublikasikan — suara tidak dapat direset.</Alert>}
@@ -407,9 +431,9 @@ function RetentionPanel() {
         onError: (e) => toast.error(errorMessage(e)),
     });
     return (
-        <section className="card space-y-3 border-red-200">
-            <h2 className="font-bold text-red-800">Retensi data wajah</h2>
-            <p className="text-sm text-slate-600">Setelah hasil final, hapus semua template wajah sesuai kebijakan retensi (§8). Tindakan ini permanen dan tercatat di log.</p>
+        <section className="card space-y-3 border-crimson-200 bg-crimson-50/20">
+            <h2 className="text-base font-extrabold text-crimson-800">Retensi data wajah</h2>
+            <p className="text-sm text-slate-600">Setelah hasil final, hapus semua template wajah sesuai kebijakan retensi. Tindakan ini permanen dan tercatat di log.</p>
             <button className="btn-danger" onClick={() => setOpen(true)}>
                 Hapus semua template wajah
             </button>
@@ -422,14 +446,23 @@ export default function Jadwal() {
     const { data: election, isLoading } = useElection();
     const { isAdmin } = useAuth();
 
-    if (isLoading) return <Spinner label="Memuat…" />;
+    if (isLoading) {
+        return (
+            <div className="card flex justify-center py-12">
+                <Spinner label="Memuat jadwal…" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-slate-900">Jadwal &amp; Status</h1>
+            <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Jadwal &amp; Status</h1>
+                <p className="mt-0.5 text-sm text-slate-500">Atur siklus pemilihan, kalibrasi pengenalan wajah, dan verifikasi integritas ledger.</p>
+            </div>
             {!election && (
-                <section className="card space-y-3">
-                    <h2 className="font-bold">Status pemilihan</h2>
+                <section className="card space-y-4">
+                    <h2 className="font-extrabold text-slate-900">Status pemilihan</h2>
                     <StatusStepper status={null} />
                     <p className="text-sm text-slate-600">Belum ada pemilihan. Buat pemilihan di bawah ini; setelah itu tombol Buka / Tutup / Publikasikan tersedia di sini.</p>
                 </section>

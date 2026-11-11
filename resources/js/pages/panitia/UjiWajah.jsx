@@ -6,7 +6,7 @@ import { detectFaces, embedFace, lastTimings, loadFaceEngine, loadImageFile } fr
 import { analyzeFrame, createLivenessSession, loadLiveness } from '../../features/face/liveness';
 import { measureQuality } from '../../features/face/quality';
 import { DETECTION } from '../../features/face/config';
-import { farOneToN, histogram, pairScores, rates, recommend, simulateIdentification } from '../../features/face/accuracy';
+import { IconCamera, IconFaceScan } from '../../components/Icons';
 import { Alert, Badge, Field, toast } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
 import UjiWajahCepat from './UjiWajahCepat';
@@ -20,15 +20,15 @@ function Histogram({ genuine, impostor }) {
     const iMax = Math.max(1, ...im.map((b) => b.count));
     const W = 600, H = 180, bw = W / g.length;
     return (
-        <figure>
+        <figure className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
             <svg viewBox={`0 0 ${W} ${H + 24}`} className="w-full" role="img" aria-label="Histogram skor kemiripan: genuine (orang sama) dan impostor (orang berbeda)">
                 {im.map((b, i) => {
                     const h = (b.count / iMax) * H;
-                    return <rect key={`i${i}`} x={i * bw + 1} y={H - h} width={bw / 2 - 1} height={h} className="fill-rose-500" />;
+                    return <rect key={`i${i}`} x={i * bw + 1} y={H - h} width={bw / 2 - 1} height={h} rx="2" className="fill-crimson-500" />;
                 })}
                 {g.map((b, i) => {
                     const h = (b.count / gMax) * H;
-                    return <rect key={`g${i}`} x={i * bw + bw / 2} y={H - h} width={bw / 2 - 1} height={h} className="fill-emerald-600" />;
+                    return <rect key={`g${i}`} x={i * bw + bw / 2} y={H - h} width={bw / 2 - 1} height={h} rx="2" className="fill-emerald-600" />;
                 })}
                 {g.map((b, i) =>
                     i % 4 === 0 ? (
@@ -38,12 +38,12 @@ function Histogram({ genuine, impostor }) {
                     ) : null,
                 )}
             </svg>
-            <figcaption className="mt-1 flex gap-4 text-xs text-slate-600">
-                <span>
-                    <span className="mr-1 inline-block size-3 bg-emerald-600 align-middle" /> Genuine / orang sama ({genuine.length} pasang, dinormalisasi)
+            <figcaption className="mt-2 flex flex-wrap gap-4 text-xs font-medium text-slate-600">
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block size-3 rounded-xs bg-emerald-600" /> Genuine / orang sama ({genuine.length} pasang, dinormalisasi)
                 </span>
-                <span>
-                    <span className="mr-1 inline-block size-3 bg-rose-500 align-middle" /> Impostor / orang berbeda ({impostor.length} pasang, dinormalisasi)
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block size-3 rounded-xs bg-crimson-500" /> Impostor / orang berbeda ({impostor.length} pasang, dinormalisasi)
                 </span>
             </figcaption>
         </figure>
@@ -181,15 +181,19 @@ function AdvancedTest({ engine, samples, setSamples }) {
     return (
         <div className="space-y-6">
             <p className="text-sm text-slate-600">
-                Untuk gerbang Fase 3: kumpulkan ≥ 3 sampel per sukarelawan dari 20–30 orang dalam berbagai kondisi. Data uji hanya ada di peramban ini (ekspor JSON untuk disimpan; hapus setelah
-                selesai). Hasil dari tab <b>Uji cepat</b> juga bisa disimpan ke sini.
+                Untuk gerbang Fase 3: kumpulkan ≥ 3 sampel per sukarelawan dari 20–30 orang dalam berbagai kondisi. Data uji hanya ada di peramban ini (ekspor JSON untuk disimpan; hapus setelah selesai). Hasil dari tab <b>Uji cepat</b> juga bisa disimpan ke sini.
             </p>
 
             <section className="card grid gap-6 lg:grid-cols-2">
                 <div>
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-900">
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-brand-950">
                         <video ref={videoRef} className="mirror h-full w-full object-cover" playsInline muted />
-                        {!cameraOn && <div className="absolute inset-0 flex items-center justify-center text-slate-300">Kamera mati</div>}
+                        {!cameraOn && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-300">
+                                <IconCamera className="size-10 text-slate-500" />
+                                <span className="text-sm">Kamera mati</span>
+                            </div>
+                        )}
                     </div>
                     {camError && <Alert type="danger" className="mt-2">{camError}</Alert>}
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -208,45 +212,58 @@ function AdvancedTest({ engine, samples, setSamples }) {
                     </div>
                     {liveness && (
                         <p className="mt-2 text-sm">
-                            Liveness: {liveness.done ? (liveness.passed ? <Badge color="green">LULUS</Badge> : <Badge color="red">GAGAL — {liveness.message}</Badge>) : <span>{liveness.message} ({liveness.index}/{liveness.total})</span>}
+                            Liveness:{' '}
+                            {liveness.done ? (
+                                liveness.passed ? (
+                                    <Badge color="green">LULUS</Badge>
+                                ) : (
+                                    <Badge color="red">GAGAL — {liveness.message}</Badge>
+                                )
+                            ) : (
+                                <span>
+                                    {liveness.message} ({liveness.index}/{liveness.total})
+                                </span>
+                            )}
                         </p>
                     )}
                 </div>
                 <div className="space-y-3 text-sm">
-                    <h2 className="font-bold">Pengukuran langsung</h2>
+                    <h2 className="font-extrabold text-slate-900">Pengukuran langsung</h2>
                     {live?.error && <Alert type="danger">{live.error}</Alert>}
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-2xl bg-slate-50 p-3.5">
                         <dt className="text-slate-500">Wajah terdeteksi</dt>
-                        <dd>{live?.faces ?? '—'}</dd>
+                        <dd className="font-mono font-semibold">{live?.faces ?? '—'}</dd>
                         <dt className="text-slate-500">Skor deteksi</dt>
-                        <dd>{live?.score?.toFixed(3) ?? '—'}</dd>
+                        <dd className="font-mono font-semibold">{live?.score?.toFixed(3) ?? '—'}</dd>
                         <dt className="text-slate-500">Lebar wajah</dt>
-                        <dd>{live?.width ? `${Math.round(live.width)} px` : '—'}</dd>
+                        <dd className="font-mono font-semibold">{live?.width ? `${Math.round(live.width)} px` : '—'}</dd>
                         <dt className="text-slate-500">Ketajaman / kecerahan</dt>
-                        <dd>{live?.quality ? `${live.quality.sharpness.toFixed(0)} / ${live.quality.brightness.toFixed(0)}` : '—'}</dd>
+                        <dd className="font-mono font-semibold">{live?.quality ? `${live.quality.sharpness.toFixed(0)} / ${live.quality.brightness.toFixed(0)}` : '—'}</dd>
                         <dt className="text-slate-500">Kedip / rasio toleh</dt>
-                        <dd>{live?.frame?.faces ? `${live.frame.blink.toFixed(2)} / ${live.frame.yaw.toFixed(2)}` : '—'}</dd>
+                        <dd className="font-mono font-semibold">{live?.frame?.faces ? `${live.frame.blink.toFixed(2)} / ${live.frame.yaw.toFixed(2)}` : '—'}</dd>
                         <dt className="text-slate-500">Vektor (8 pertama)</dt>
                         <dd className="font-mono text-[11px] break-all">{live?.embedding ? live.embedding.slice(0, 8).map((v) => v.toFixed(3)).join(', ') : '—'}</dd>
                     </dl>
-                    <h3 className="pt-2 font-semibold">Waktu proses (rata-rata {bench.length} frame)</h3>
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <h3 className="pt-1 font-bold text-slate-900">Waktu proses (rata-rata {bench.length} frame)</h3>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-2xl bg-slate-50 p-3.5">
                         <dt className="text-slate-500">Landmark (liveness)</dt>
-                        <dd>{avg('l').toFixed(0)} ms</dd>
+                        <dd className="font-mono font-semibold">{avg('l').toFixed(0)} ms</dd>
                         <dt className="text-slate-500">Deteksi ({DETECTION.kioskSize}px)</dt>
-                        <dd>{avg('d').toFixed(0)} ms</dd>
+                        <dd className="font-mono font-semibold">{avg('d').toFixed(0)} ms</dd>
                         <dt className="text-slate-500">Embedding</dt>
-                        <dd>{avg('e').toFixed(0)} ms</dd>
+                        <dd className="font-mono font-semibold">{avg('e').toFixed(0)} ms</dd>
                         <dt className="text-slate-500">Muat model</dt>
-                        <dd>{lastTimings().load ? `${(lastTimings().load / 1000).toFixed(1)} s` : '—'}</dd>
+                        <dd className="font-mono font-semibold">{lastTimings().load ? `${(lastTimings().load / 1000).toFixed(1)} s` : '—'}</dd>
                     </dl>
                     <p className="text-xs text-slate-500">Catat angka ini dari tablet NYATA ke docs/PROGRESS.md. Gerbang: total identifikasi &gt; 3 detik → evaluasi ulang.</p>
-                    <p className="text-xs text-slate-400">{navigator.userAgent} · {navigator.hardwareConcurrency} inti</p>
+                    <p className="text-xs text-slate-400">
+                        {navigator.userAgent} · {navigator.hardwareConcurrency} inti
+                    </p>
                 </div>
             </section>
 
             <section className="card space-y-4">
-                <h2 className="font-bold">Kumpulkan sampel</h2>
+                <h2 className="font-extrabold text-slate-900">Kumpulkan sampel</h2>
                 <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                     <Field label="Kode sukarelawan (mis. S01)">{(id) => <input id={id} className="input" value={label} onChange={(e) => setLabel(e.target.value)} />}</Field>
                     <Field label="Kondisi">
@@ -274,24 +291,24 @@ function AdvancedTest({ engine, samples, setSamples }) {
                     <button className="btn-secondary btn-sm" onClick={exportJson} disabled={!samples.length}>
                         Ekspor JSON
                     </button>
-                    <button className="btn-ghost btn-sm text-red-700" onClick={() => confirm('Hapus semua sampel dari memori?') && setSamples([])} disabled={!samples.length}>
+                    <button className="btn-ghost btn-sm text-crimson-700 hover:bg-crimson-50" onClick={() => confirm('Hapus semua sampel dari memori?') && setSamples([])} disabled={!samples.length}>
                         Hapus sampel
                     </button>
                 </div>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm font-medium text-slate-600">
                     {samples.length} sampel · {labels.length} sukarelawan
                 </p>
             </section>
 
             {analysis && (
                 <section className="card space-y-5">
-                    <h2 className="font-bold">Laporan akurasi</h2>
+                    <h2 className="font-extrabold text-slate-900">Laporan akurasi</h2>
                     <Histogram genuine={analysis.genuine} impostor={analysis.impostor} />
 
                     {analysis.rec ? (
                         <Alert type="info" title={`Rekomendasi: AMBANG ${analysis.rec.threshold} · MARGIN ${analysis.rec.margin}`}>
-                            FAR per-pembanding {pct(analysis.rec.far)} → perkiraan salah-cocok 1:N (N={population}) {pct(analysis.rec.far1N)} · FRR {pct(analysis.rec.frr)} · impostor
-                            tertinggi {analysis.rec.maxImpostor.toFixed(3)} · genuine terendah {analysis.rec.minGenuine.toFixed(3)}. Dengan sampel kecil, estimasi FAR tidak presisi — tambah sukarelawan.
+                            FAR per-pembanding {pct(analysis.rec.far)} → perkiraan salah-cocok 1:N (N={population}) {pct(analysis.rec.far1N)} · FRR {pct(analysis.rec.frr)} · impostor tertinggi{' '}
+                            {analysis.rec.maxImpostor.toFixed(3)} · genuine terendah {analysis.rec.minGenuine.toFixed(3)}. Dengan sampel kecil, estimasi FAR tidak presisi — tambah sukarelawan.
                         </Alert>
                     ) : (
                         <Alert type="warning">Butuh minimal 5 pasangan genuine dan 20 pasangan impostor untuk rekomendasi.</Alert>
@@ -301,7 +318,7 @@ function AdvancedTest({ engine, samples, setSamples }) {
                         <Field label="Jumlah pemilih (N)">{(id) => <input id={id} type="number" className="input" value={population} onChange={(e) => setPopulation(Number(e.target.value))} />}</Field>
                         <Field label="Ambang uji">{(id) => <input id={id} type="number" step="0.01" className="input" value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} />}</Field>
                         <Field label="Margin uji">{(id) => <input id={id} type="number" step="0.01" className="input" value={margin} onChange={(e) => setMargin(Number(e.target.value))} />}</Field>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             {analysis.rec && (
                                 <button
                                     className="btn-secondary btn-sm"
@@ -321,8 +338,8 @@ function AdvancedTest({ engine, samples, setSamples }) {
 
                     {sim && (
                         <p className="text-sm">
-                            Simulasi identifikasi 1:N ({sim.gallery} galeri, {sim.probes} probe): <Badge color="green">benar {sim.correct}</Badge> <Badge color="red">salah-kenal {sim.wrong}</Badge>{' '}
-                            <Badge color="yellow">ditolak → cadangan {sim.rejected}</Badge>
+                            Simulasi identifikasi 1:N ({sim.gallery} galeri, {sim.probes} probe): <Badge color="green">benar {sim.correct}</Badge>{' '}
+                            <Badge color="red">salah-kenal {sim.wrong}</Badge> <Badge color="yellow">ditolak → cadangan {sim.rejected}</Badge>
                         </p>
                     )}
 
@@ -340,11 +357,11 @@ function AdvancedTest({ engine, samples, setSamples }) {
                                 {Array.from({ length: 13 }, (_, i) => 0.3 + i * 0.05).map((t) => {
                                     const r = rates(analysis.genuine, analysis.impostor, t);
                                     return (
-                                        <tr key={t} className={Math.abs(t - threshold) < 0.026 ? 'bg-brand-50' : ''}>
-                                            <td>{t.toFixed(2)}</td>
-                                            <td>{pct(r.far)}</td>
-                                            <td>{pct(farOneToN(r.far, population))}</td>
-                                            <td>{pct(r.frr)}</td>
+                                        <tr key={t} className={Math.abs(t - threshold) < 0.026 ? 'bg-brand-50/70 font-semibold' : ''}>
+                                            <td className="font-mono">{t.toFixed(2)}</td>
+                                            <td className="font-mono">{pct(r.far)}</td>
+                                            <td className="font-mono">{pct(farOneToN(r.far, population))}</td>
+                                            <td className="font-mono">{pct(r.frr)}</td>
                                         </tr>
                                     );
                                 })}
@@ -398,18 +415,21 @@ export default function UjiWajah() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-slate-900">Uji Wajah</h1>
-                <p className="text-sm text-slate-600">Coba pengenalan wajah sebelum hari-H. Semua pemrosesan terjadi di peramban ini; foto dan wajah tidak dikirim ke server.</p>
+                <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                    <IconFaceScan className="size-7 text-brand-700" />
+                    Uji Wajah
+                </h1>
+                <p className="mt-0.5 text-sm text-slate-500">Coba pengenalan wajah sebelum hari-H. Semua pemrosesan terjadi di peramban ini; foto dan wajah tidak dikirim ke server.</p>
             </div>
 
             {engine.state === 'loading' && (
-                <div className="card space-y-2" role="status">
-                    <div className="flex justify-between text-sm">
+                <div className="card space-y-2.5" role="status">
+                    <div className="flex justify-between text-sm font-medium">
                         <span>{engine.label}… (unduhan pertama ±20 MB, berikutnya dari cache)</span>
-                        <span className="tabular-nums">{Math.round(engine.progress * 100)}%</span>
+                        <span className="font-mono font-bold text-brand-700 tabular-nums">{Math.round(engine.progress * 100)}%</span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-100">
-                        <div className="h-2 rounded-full bg-brand-600 transition-all" style={{ width: `${Math.round(engine.progress * 100)}%` }} />
+                    <div className="h-2.5 rounded-full bg-slate-100">
+                        <div className="h-2.5 rounded-full bg-gradient-to-r from-brand-700 to-brand-500 transition-all" style={{ width: `${Math.round(engine.progress * 100)}%` }} />
                     </div>
                 </div>
             )}
@@ -419,20 +439,22 @@ export default function UjiWajah() {
                 </Alert>
             )}
 
-            <div role="tablist" aria-label="Mode uji" className="grid gap-2 sm:grid-cols-2">
+            <div role="tablist" aria-label="Mode uji" className="grid gap-3 sm:grid-cols-2">
                 {TABS.map(([key, label, desc]) => (
                     <button
                         key={key}
                         role="tab"
                         aria-selected={tab === key}
                         onClick={() => setTab(key)}
-                        className={`rounded-2xl border-2 p-4 text-left transition ${tab === key ? 'border-brand-700 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                        className={`rounded-2xl border-2 p-4 text-left transition ${
+                            tab === key ? 'border-brand-700 bg-brand-50/70 shadow-xs' : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
                     >
-                        <span className={`block font-bold ${tab === key ? 'text-brand-800' : 'text-slate-800'}`}>
+                        <span className={`block font-extrabold ${tab === key ? 'text-brand-900' : 'text-slate-900'}`}>
                             {label}
-                            {key === 'advanced' && samples.length > 0 && <span className="ml-2 text-sm font-normal text-slate-500">({samples.length} sampel)</span>}
+                            {key === 'advanced' && samples.length > 0 && <span className="ml-2 text-xs font-semibold text-brand-700">({samples.length} sampel)</span>}
                         </span>
-                        <span className="text-sm text-slate-600">{desc}</span>
+                        <span className="mt-0.5 block text-xs text-slate-600 sm:text-sm">{desc}</span>
                     </button>
                 ))}
             </div>

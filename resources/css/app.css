@@ -4,15 +4,31 @@
 @source '../js';
 
 @theme {
-    --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, sans-serif;
-    --color-brand-50: #eef5ff;
-    --color-brand-100: #d9e8ff;
-    --color-brand-200: #b3d1ff;
-    --color-brand-500: #2563c9;
-    --color-brand-600: #1d4fa8;
-    --color-brand-700: #173f87;
-    --color-brand-800: #0f3d75;
-    --color-brand-900: #0b2a52;
+    --font-sans: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Noto Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    /* CiptaKita.id inspired Royal Navy -> Electric Cobalt palette */
+    --color-brand-50: #eff6ff;
+    --color-brand-100: #dbeafe;
+    --color-brand-200: #bfdbfe;
+    --color-brand-300: #93c5fd;
+    --color-brand-400: #60a5fa;
+    --color-brand-500: #2563eb;
+    --color-brand-600: #1d4ed8;
+    --color-brand-700: #163b96;
+    --color-brand-800: #0c2668;
+    --color-brand-900: #07173d;
+    --color-brand-950: #040d26;
+
+    /* CiptaKita.id Crimson Red accent */
+    --color-crimson-50: #fef2f2;
+    --color-crimson-100: #fee2e2;
+    --color-crimson-200: #fecaca;
+    --color-crimson-500: #ef4444;
+    --color-crimson-600: #dc2626;
+    --color-crimson-700: #b91c1c;
+
+    /* Warm Amber highlight */
     --color-accent-400: #fbbf24;
     --color-accent-500: #f59e0b;
 }
@@ -20,6 +36,12 @@
 @layer base {
     html {
         -webkit-tap-highlight-color: transparent;
+        scroll-behavior: smooth;
+    }
+    body {
+        background-color: #f4f7fc;
+        color: #0f172a;
+        font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     }
     button,
     [role='button'] {
@@ -33,31 +55,34 @@
 
 @layer components {
     .btn {
-        @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition select-none disabled:cursor-not-allowed disabled:opacity-50;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold tracking-tight transition-all duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base;
     }
     .btn-primary {
-        @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition select-none disabled:cursor-not-allowed disabled:opacity-50 bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold tracking-tight transition-all duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base bg-gradient-to-r from-brand-700 via-brand-600 to-brand-500 text-white shadow-[0_2px_10px_-2px_rgba(37,99,235,0.45)] hover:from-brand-800 hover:via-brand-700 hover:to-brand-600 hover:shadow-[0_6px_16px_-3px_rgba(37,99,235,0.5)] active:scale-[0.99];
     }
     .btn-secondary {
-        @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition select-none disabled:cursor-not-allowed disabled:opacity-50 border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 active:bg-slate-100;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold tracking-tight transition-all duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base border border-slate-200/90 bg-white text-slate-800 shadow-xs hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99];
     }
     .btn-danger {
-        @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition select-none disabled:cursor-not-allowed disabled:opacity-50 bg-red-600 text-white hover:bg-red-700;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold tracking-tight transition-all duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-base bg-gradient-to-r from-crimson-700 to-crimson-600 text-white shadow-[0_2px_10px_-2px_rgba(220,38,38,0.4)] hover:from-crimson-700 hover:to-crimson-700 active:scale-[0.99];
     }
     .btn-ghost {
-        @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition select-none disabled:cursor-not-allowed disabled:opacity-50 text-slate-700 hover:bg-slate-100;
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold tracking-tight transition-all duration-150 select-none disabled:cursor-not-allowed disabled:opacity-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+    }
+    .btn-sm {
+        @apply min-h-9 rounded-lg px-3 py-1.5 text-xs sm:text-sm;
     }
     .card {
-        @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6;
+        @apply rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(12,38,104,0.04),0_8px_24px_-6px_rgba(12,38,104,0.06)] sm:p-6;
     }
     .input {
-        @apply block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-none;
+        @apply block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-2xs transition placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 focus:outline-none sm:text-base;
     }
     .label {
-        @apply mb-1 block text-sm font-medium text-slate-700;
+        @apply mb-1.5 block text-sm font-semibold text-slate-700;
     }
     .badge {
-        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+        @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-tight;
     }
     .table-wrap {
         @apply -mx-4 overflow-x-auto sm:mx-0;
@@ -66,14 +91,28 @@
         @apply w-full min-w-[640px] text-left text-sm;
     }
     .data-table th {
-        @apply border-b border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-600;
+        @apply border-b border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs font-bold tracking-wider text-slate-500 uppercase;
     }
     .data-table td {
-        @apply border-b border-slate-100 px-3 py-2 align-top;
+        @apply border-b border-slate-100 px-3.5 py-3 align-middle text-slate-700;
     }
-    .btn-sm {
-        @apply min-h-9 rounded-lg px-3 py-1.5 text-sm;
+    .data-table tbody tr {
+        @apply transition-colors hover:bg-slate-50/70;
     }
+}
+
+/* Latar grid geometris halus untuk hero & stage modern */
+.bg-tech-grid {
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 36px 36px;
+}
+
+.bg-light-grid {
+    background-image:
+        radial-gradient(rgba(12, 38, 104, 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
 }
 
 /* Kiosk: cegah seleksi teks & zoom ganda-ketuk */
@@ -85,6 +124,21 @@
 
 .mirror {
     transform: scaleX(-1);
+}
+
+@keyframes scanBeam {
+    0%, 100% {
+        transform: translateY(-28%);
+        opacity: 0.35;
+    }
+    50% {
+        transform: translateY(28%);
+        opacity: 0.9;
+    }
+}
+
+.animate-scan-beam {
+    animation: scanBeam 2.8s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

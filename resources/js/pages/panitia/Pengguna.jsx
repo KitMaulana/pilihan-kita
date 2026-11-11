@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../../lib/api';
+import { IconShieldCheck } from '../../components/Icons';
 import { Alert, Badge, Field, Modal, Spinner, toast } from '../../components/ui';
 
 function UserForm({ user, onClose }) {
@@ -48,8 +49,8 @@ function UserForm({ user, onClose }) {
                         </select>
                     )}
                 </Field>
-                <label className="flex items-center gap-2">
-                    <input type="checkbox" className="size-5" checked={form.is_active} onChange={set('is_active')} /> Aktif
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox" className="size-5 rounded accent-brand-700" checked={form.is_active} onChange={set('is_active')} /> Aktif
                 </label>
                 {error && <Alert type="danger">{error}</Alert>}
             </div>
@@ -62,15 +63,19 @@ export default function Pengguna() {
     const list = useQuery({ queryKey: ['users'], queryFn: () => api.get('/panitia/users').then((r) => r.data.data) });
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-slate-900">Pengguna</h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Pengguna Panel</h1>
+                    <p className="mt-0.5 text-sm text-slate-500">Kelola akun admin dan panitia yang berwenang mengakses panel kontrol.</p>
+                </div>
                 <button className="btn-primary" onClick={() => setEditing('new')}>
+                    <IconShieldCheck className="size-4" />
                     Tambah akun
                 </button>
             </div>
             <section className="card">
                 {list.isLoading ? (
-                    <Spinner />
+                    <Spinner label="Memuat pengguna…" />
                 ) : (
                     <div className="table-wrap">
                         <table className="data-table">
@@ -87,13 +92,13 @@ export default function Pengguna() {
                             <tbody>
                                 {list.data?.map((u) => (
                                     <tr key={u.id}>
-                                        <td>{u.name}</td>
+                                        <td className="font-semibold text-slate-900">{u.name}</td>
                                         <td className="font-mono text-xs">{u.username || '—'}</td>
                                         <td>{u.email}</td>
                                         <td>
                                             <Badge color={u.role === 'admin' ? 'blue' : 'gray'}>{u.role}</Badge>
                                         </td>
-                                        <td>{u.is_active ? <Badge color="green">Aktif</Badge> : <Badge>Nonaktif</Badge>}</td>
+                                        <td>{u.is_active ? <Badge color="green" dot>Aktif</Badge> : <Badge>Nonaktif</Badge>}</td>
                                         <td className="text-right">
                                             <button className="btn-ghost btn-sm" onClick={() => setEditing(u)}>
                                                 Ubah

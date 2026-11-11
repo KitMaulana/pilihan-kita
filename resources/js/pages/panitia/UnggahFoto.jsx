@@ -5,6 +5,7 @@ import { number, percent } from '../../lib/format';
 import { detectFaces, embedFace, loadFaceEngine, loadImageFile } from '../../features/face/faceEngine';
 import { assessEnrollment, measureQuality } from '../../features/face/quality';
 import { DETECTION, MODEL_VERSION } from '../../features/face/config';
+import { IconUpload } from '../../components/Icons';
 import { Alert, Badge, ProgressBar, Spinner } from '../../components/ui';
 
 /** Nama berkas → kunci pemilih: "0071234567.jpg" → "0071234567", "id-15.png" → "id-15". */
@@ -150,43 +151,49 @@ export default function UnggahFoto() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-slate-900">Unggah Pas Foto</h1>
+            <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Unggah Pas Foto</h1>
+                <p className="mt-0.5 text-sm text-slate-500">Ekstrak vektor wajah langsung di browser — foto asli tidak pernah dikirim ke server.</p>
+            </div>
 
             {status.data && (
                 <section className="card">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="font-semibold">
+                        <p className="font-bold text-slate-900">
                             {number(status.data.registered)} dari {number(status.data.total)} pemilih terdaftar wajah
                         </p>
-                        <p className="text-sm text-slate-500">
-                            {percent(status.data.registered, status.data.total)}% · target ≥ 98% · {status.data.duplicates} ditandai ganda
+                        <p className="text-sm font-medium text-slate-500">
+                            <span className="font-mono font-bold text-emerald-700">{percent(status.data.registered, status.data.total)}%</span> · target ≥ 98% · {status.data.duplicates} ditandai ganda
                         </p>
                     </div>
-                    <div className="mt-2">
-                        <ProgressBar value={percent(status.data.registered, status.data.total)} color="bg-emerald-600" label="Progres pendaftaran wajah" />
+                    <div className="mt-2.5">
+                        <ProgressBar value={percent(status.data.registered, status.data.total)} color="bg-gradient-to-r from-emerald-600 to-emerald-500" label="Progres pendaftaran wajah" />
                     </div>
                 </section>
             )}
 
             <Alert type="info" title="Cara pakai">
-                Beri nama berkas sesuai <strong>NISN</strong> (siswa) atau <strong>NIP</strong> (guru), mis. <code>0071234567.jpg</code>. Guru tanpa NIP: <code>id-&lt;ID pemilih&gt;.jpg</code>{' '}
-                (ID terlihat di menu Pemilih). Pilih banyak berkas sekaligus atau satu folder. Foto diproses di peramban ini; <strong>yang dikirim ke server hanya vektor</strong>.
-                Syarat: tepat 1 wajah, menghadap depan, terang, tidak buram.
+                Beri nama berkas sesuai <strong>NISN</strong> (siswa) atau <strong>NIP</strong> (guru), mis. <code>0071234567.jpg</code>. Guru tanpa NIP: <code>id-&lt;ID pemilih&gt;.jpg</code> (ID terlihat di menu Pemilih). Pilih banyak berkas sekaligus atau satu folder. Syarat: tepat 1 wajah, menghadap depan, terang, tidak buram.
             </Alert>
 
-            <section className="card space-y-4">
+            <section className="card space-y-5">
                 <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="btn-secondary">
-                        Pilih berkas foto
+                    <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 p-4 text-center transition hover:border-brand-500 hover:bg-brand-50/40">
+                        <IconUpload className="size-6 text-brand-700" />
+                        <span className="text-sm font-bold text-slate-800">Pilih berkas foto</span>
+                        <span className="text-xs text-slate-500">JPG, PNG, atau WebP (bisa banyak sekaligus)</span>
                         <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} disabled={running} />
                     </label>
-                    <label className="btn-secondary">
-                        Pilih folder
+                    <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 p-4 text-center transition hover:border-brand-500 hover:bg-brand-50/40">
+                        <IconUpload className="size-6 text-brand-700" />
+                        <span className="text-sm font-bold text-slate-800">Pilih satu folder</span>
+                        <span className="text-xs text-slate-500">Muat seluruh folder pas foto kelas/sekolah</span>
                         <input type="file" webkitdirectory="" directory="" multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} disabled={running} />
                     </label>
                 </div>
-                <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" className="size-5" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox" className="size-5 rounded accent-brand-700" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
                     Timpa template yang sudah ada
                 </label>
 
@@ -199,8 +206,8 @@ export default function UnggahFoto() {
 
                 {items.length > 0 && (
                     <>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-sm text-slate-600">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                            <p className="text-sm font-medium text-slate-600">
                                 {items.length} berkas · selesai {doneCount} · gagal {counts.error || 0} · perlu dicek {counts.warning || 0}
                             </p>
                             <div className="flex gap-2">
@@ -219,16 +226,16 @@ export default function UnggahFoto() {
 
                         {failed.length > 0 && !running && (
                             <div>
-                                <h2 className="mb-2 font-semibold text-red-700">Foto gagal / perlu dicek ({failed.length})</h2>
-                                <ul className="divide-y divide-slate-100 rounded-xl border border-red-100">
+                                <h2 className="mb-2 text-sm font-bold text-crimson-700">Foto gagal / perlu dicek ({failed.length})</h2>
+                                <ul className="divide-y divide-slate-100 rounded-2xl border border-crimson-100 bg-crimson-50/30">
                                     {failed.map((it, idx) => (
-                                        <li key={idx} className="flex items-center gap-3 p-2 text-sm">
-                                            {it.thumb ? <img src={it.thumb} alt="" className="size-12 rounded" /> : <div className="size-12 rounded bg-slate-100" />}
+                                        <li key={idx} className="flex items-center gap-3 p-3 text-sm">
+                                            {it.thumb ? <img src={it.thumb} alt="" className="size-12 rounded-xl object-cover" /> : <div className="size-12 rounded-xl bg-slate-100" />}
                                             <div className="min-w-0">
-                                                <p className="font-medium">
-                                                    {it.name} {it.voter && <span className="text-slate-500">— {it.voter.name} ({it.voter.class_name})</span>}
+                                                <p className="font-semibold text-slate-900">
+                                                    {it.name} {it.voter && <span className="font-normal text-slate-500">— {it.voter.name} ({it.voter.class_name})</span>}
                                                 </p>
-                                                <p className="text-red-700">{it.reasons.join('; ')}</p>
+                                                <p className="text-xs text-crimson-700">{it.reasons.join('; ')}</p>
                                             </div>
                                         </li>
                                     ))}
@@ -253,7 +260,7 @@ export default function UnggahFoto() {
                                             <td className="font-mono text-xs">{it.name}</td>
                                             <td>{it.voter ? `${it.voter.name} (${it.voter.class_name})` : '—'}</td>
                                             <td>{STATUS[it.status]}</td>
-                                            <td>{it.quality ?? '—'}</td>
+                                            <td className="font-mono text-xs">{it.quality ?? '—'}</td>
                                             <td className="text-xs text-slate-600">{it.reasons?.join('; ')}</td>
                                         </tr>
                                     ))}

@@ -6,6 +6,8 @@ import { getDeviceToken } from '../../lib/device';
 import { loadFaceEngine } from '../../features/face/faceEngine';
 import { loadLiveness } from '../../features/face/liveness';
 import { MODEL_VERSION } from '../../features/face/config';
+import { IconAlertTriangle, IconCalendarClock, IconDeviceTablet, IconFaceScan, IconRefresh } from '../../components/Icons';
+import { Spinner } from '../../components/ui';
 import { useKiosk } from './kioskStore';
 import { CenterCard, KioskHeader, Screen, useWakeLock } from './shell';
 import ScanStep from './ScanStep';
@@ -63,23 +65,33 @@ export default function KioskPage() {
 
     if (!hasToken) {
         return (
-            <CenterCard title="Perangkat belum terdaftar">
+            <CenterCard title="Perangkat belum terdaftar" icon={<IconDeviceTablet className="size-7" />}>
                 <p>Tablet ini belum dipasangi token perangkat. Minta panitia membuka menu Perangkat dan memindai/menempel tautan pemasangan.</p>
                 <Link to="/kiosk/pasang" className="btn-primary mt-6 w-full">
-                    Pasang token
+                    Pasang token perangkat
                 </Link>
             </CenterCard>
         );
     }
 
-    if (status.isLoading) return <CenterCard title="Menghubungkan…">Memeriksa status pemilihan.</CenterCard>;
+    if (status.isLoading) {
+        return (
+            <CenterCard title="Menghubungkan…">
+                <p>Memeriksa status pemilihan dan identitas perangkat.</p>
+                <div className="mt-4 flex justify-center">
+                    <Spinner />
+                </div>
+            </CenterCard>
+        );
+    }
 
     if (status.isError) {
         const code = errorCode(status.error);
         return (
-            <CenterCard title={code === 'device_unauthorized' ? 'Perangkat ditolak' : 'Koneksi terputus'}>
+            <CenterCard title={code === 'device_unauthorized' ? 'Perangkat ditolak' : 'Koneksi terputus'} icon={<IconAlertTriangle className="size-7 text-crimson-600" />}>
                 <p>{errorMessage(status.error)}</p>
                 <button className="btn-primary mt-6 w-full" onClick={() => status.refetch()}>
+                    <IconRefresh className="size-4" />
                     Coba lagi
                 </button>
                 {code === 'device_unauthorized' && (
@@ -97,7 +109,7 @@ export default function KioskPage() {
     const election = status.data.election;
     if (status.data.model_version !== MODEL_VERSION) {
         return (
-            <CenterCard title="Versi aplikasi tidak cocok">
+            <CenterCard title="Versi aplikasi tidak cocok" icon={<IconAlertTriangle className="size-7 text-amber-600" />}>
                 Versi model di tablet ({MODEL_VERSION}) berbeda dengan server ({status.data.model_version}). Muat ulang halaman; bila tetap, hubungi panitia.
             </CenterCard>
         );
@@ -105,19 +117,22 @@ export default function KioskPage() {
 
     if (!election || !election.is_voting_open) {
         return (
-            <CenterCard title="Pemungutan suara belum/tidak dibuka">
+            <CenterCard title="Pemungutan suara belum dibuka" icon={<IconCalendarClock className="size-7" />}>
                 <p>{election?.closed_reason || 'Belum ada pemilihan yang disiapkan.'}</p>
-                <p className="mt-4 text-sm text-slate-500">Halaman ini akan memeriksa ulang secara otomatis. · {status.data.device.name}</p>
+                <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                    <span className="size-2 animate-pulse rounded-full bg-amber-500" />
+                    Memeriksa ulang otomatis · {status.data.device.name}
+                </p>
             </CenterCard>
         );
     }
 
     if (engine.error && !faceDisabled) {
         return (
-            <CenterCard title="Mesin wajah gagal dimuat">
+            <CenterCard title="Mesin wajah gagal dimuat" icon={<IconAlertTriangle className="size-7 text-amber-600" />}>
                 <p className="text-sm">{engine.error}</p>
                 <p className="mt-3 text-sm">Pemilih tetap dapat memakai jalur NISN/NIP.</p>
-                <div className="mt-6 grid gap-2">
+                <div className="mt-6 grid gap-2.5">
                     <button className="btn-primary" onClick={() => location.reload()}>
                         Muat ulang
                     </button>
@@ -130,21 +145,23 @@ export default function KioskPage() {
     }
 
     if (!engine.ready && !faceDisabled) {
+        const pct = Math.round(engine.progress * 100);
         return (
-            <CenterCard title="Menyiapkan tablet…">
-                <p>{engine.label}</p>
-                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-200">
-                    <div className="h-full bg-brand-600 transition-all" style={{ width: `${Math.round(engine.progress * 100)}%` }} />
+            <CenterCard title="Menyiapkan tablet check-in…" icon={<IconFaceScan className="size-7" />}>
+                <p className="font-medium text-slate-700">{engine.label}</p>
+                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
+                    <div className="h-full rounded-full bg-gradient-to-r from-brand-700 to-brand-500 transition-all duration-300" style={{ width: `${pct}%` }} />
                 </div>
-                <p className="mt-2 text-xs text-slate-500">Unduhan pertama ±30–50 MB, selanjutnya tersimpan di tablet.</p>
+                <p className="mt-2 font-mono text-xs font-semibold text-brand-700 tabular-nums">{pct}%</p>
+                <p className="mt-2 text-xs text-slate-500">Unduhan pertama ±30–50 MB, selanjutnya tersimpan di cache tablet.</p>
             </CenterCard>
         );
     }
 
     return (
         <Screen>
-            <KioskHeader title={election.name} badge="Check-in" deviceName={status.data.device.name} simulation={election.is_simulation} />
-            <main className="flex flex-1 flex-col">
+            <KioskHeader title={election.name} badge="Meja Check-in" deviceName={status.data.device.name} simulation={election.is_simulation} />
+            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col">
                 {step === 'scan' && (faceDisabled ? <CadanganForm /> : <ScanStep requireLiveness={election.require_liveness} />)}
                 {step === 'confirm' && <KonfirmasiPage />}
                 {step === 'done' && <SelesaiPage />}
