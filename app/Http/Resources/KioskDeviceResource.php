@@ -12,6 +12,7 @@ class KioskDeviceResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'role' => $this->role,
             'is_active' => $this->is_active,
             'online' => $this->is_active && $this->last_seen_at && $this->last_seen_at->gt(now()->subMinutes(2)),
             'last_seen_at' => $this->last_seen_at?->toIso8601String(),

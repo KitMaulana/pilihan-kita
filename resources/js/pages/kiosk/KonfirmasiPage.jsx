@@ -6,7 +6,7 @@ import { useCountdown } from './useCountdown';
 /** Konfirmasi identitas: NAMA + KELAS, tanpa foto (§2 keputusan #4). */
 export default function KonfirmasiPage() {
     const identity = useKiosk((s) => s.identity);
-    const confirmed = useKiosk((s) => s.confirmed);
+    const checkedIn = useKiosk((s) => s.checkedIn);
     const showMessage = useKiosk((s) => s.showMessage);
     const goFallback = useKiosk((s) => s.goFallback);
     const [busy, setBusy] = useState(false);
@@ -20,7 +20,7 @@ export default function KonfirmasiPage() {
         try {
             const { data } = await kiosk.post('/kiosk/confirm', { ticket: identity.ticket, accepted });
             if (accepted) {
-                confirmed(data);
+                checkedIn(data);
             } else if (identity.method === 'face') {
                 goFallback();
             } else {
@@ -44,7 +44,7 @@ export default function KonfirmasiPage() {
 
                 <div className="mt-8 grid gap-3 sm:grid-cols-2">
                     <button className="btn min-h-16 bg-emerald-600 text-xl text-white hover:bg-emerald-700" disabled={busy} onClick={() => answer(true)}>
-                        Ya, ini saya
+                        Ya, ini saya — check-in
                     </button>
                     <button className="btn-secondary min-h-16 text-xl" disabled={busy} onClick={() => answer(false)}>
                         Bukan saya

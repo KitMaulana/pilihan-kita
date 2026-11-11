@@ -24,8 +24,9 @@ class Election extends Model
         'duplicate_threshold' => 0.70, // dua pemilih dianggap "wajah ganda" bila >= ini
         'max_fallback_attempts' => 3,
         'ticket_identified_ttl' => 120, // detik untuk menekan Ya/Tidak
-        'ticket_vote_ttl' => 180,       // detik untuk memilih kandidat
-        'seal_batch_size' => 10,        // suara disegel & diacak per kelompok
+        'ticket_vote_ttl' => 180,       // (tidak dipakai lagi sejak alur check-in → bilik)
+        'booth_credit_ttl' => 900,      // detik: batas waktu dari check-in sampai memilih di bilik
+        'seal_batch_size' => 10,        // suara disegel ke ledger & diacak urutannya per kelompok
         'require_liveness' => true,
     ];
 

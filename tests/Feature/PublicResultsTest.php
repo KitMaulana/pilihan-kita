@@ -18,11 +18,11 @@ class PublicResultsTest extends TestCase
     {
         $receipts = [];
         $cid = $election->candidates()->get()[$candidateIndex]->id;
+        [, $booth] = $this->booth('Bilik '.Str::random(6));
         for ($i = 0; $i < $n; $i++) {
             $voter = Voter::factory()->create();
-            $ticket = $this->postJson('/api/v1/kiosk/fallback', ['type' => 'student', 'identifier' => $voter->identifier, 'birth_date' => '2008-05-17'], $headers)->json('ticket');
-            $token = $this->postJson('/api/v1/kiosk/confirm', ['ticket' => $ticket, 'accepted' => true], $headers)->json('vote_token');
-            $receipts[] = $this->postJson('/api/v1/kiosk/vote', ['vote_token' => $token, 'candidate_id' => $cid, 'idempotency_key' => (string) Str::uuid()], $headers)->json('receipt_code');
+            $this->checkInByNisn($headers, $voter->identifier);
+            $receipts[] = $this->boothVote($booth, $cid)->assertCreated()->json('receipt_code');
         }
 
         return $receipts;
@@ -50,21 +50,28 @@ class PublicResultsTest extends TestCase
         }
     }
 
-    public function test_selama_voting_hanya_suara_tersegel_yang_dihitung(): void
+    public function test_hasil_langsung_menghitung_semua_suara_tanpa_menunggu_segel(): void
     {
-        $election = $this->openElection(['seal_batch_size' => 3]);
+        $election = $this->openElection(['seal_batch_size' => 10]);
         [, $h] = $this->device();
         $this->castVotes($election, $h, 2);
 
         Cache::flush();
         $this->getJson('/api/v1/public/results')
-            ->assertJsonPath('votes_counted', 0)
-            ->assertJsonPath('votes_pending', 2)
+            ->assertJsonPath('votes_counted', 2)
+            ->assertJsonPath('candidates.0.votes', 2)
+            ->assertJsonPath('votes_pending', 0)
             ->assertJsonPath('participation.all.voted', 2);
+        $this->assertSame(0, Vote::whereNotNull('seq')->count(), 'Ledger belum disegel, tetapi hasil sudah terhitung.');
 
-        $this->castVotes($election, $h, 1); // genap satu batch → disegel
+        // Sudah check-in tapi belum memilih di bilik → partisipasi naik, suara belum.
+        $this->checkInByNisn($h, Voter::factory()->create()->identifier);
         Cache::flush();
-        $this->getJson('/api/v1/public/results')->assertJsonPath('votes_counted', 3)->assertJsonPath('votes_pending', 0);
+        $this->getJson('/api/v1/public/results')
+            ->assertJsonPath('votes_counted', 2)
+            ->assertJsonPath('votes_pending', 1)
+            ->assertJsonPath('booth_waiting', 1)
+            ->assertJsonPath('participation.all.voted', 3);
     }
 
     public function test_hasil_di_cache_lima_detik(): void

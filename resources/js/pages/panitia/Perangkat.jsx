@@ -7,11 +7,12 @@ import { Alert, Badge, EmptyState, Field, Modal, Spinner, toast } from '../../co
 export default function Perangkat() {
     const qc = useQueryClient();
     const [name, setName] = useState('');
+    const [role, setRole] = useState('checkin');
     const [created, setCreated] = useState(null);
     const list = useQuery({ queryKey: ['devices'], queryFn: () => api.get('/panitia/devices').then((r) => r.data.data), refetchInterval: 15_000 });
 
     const register = useMutation({
-        mutationFn: () => api.post('/panitia/devices', { name }),
+        mutationFn: () => api.post('/panitia/devices', { name, role }),
         onSuccess: ({ data }) => {
             setCreated(data);
             setName('');
@@ -32,9 +33,19 @@ export default function Perangkat() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-slate-900">Perangkat (Tablet Kiosk)</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Perangkat</h1>
 
-            <section className="card">
+            <section className="card space-y-4">
+                <div className="grid gap-3 text-sm sm:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 p-3">
+                        <p className="font-semibold text-slate-800">① Meja check-in</p>
+                        <p className="text-slate-600">Tablet berkamera di pintu masuk. Mengenali wajah / NISN, menampilkan nama, lalu mempersilakan pemilih ke bilik. Tidak bisa memungut suara.</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 p-3">
+                        <p className="font-semibold text-slate-800">② Bilik suara</p>
+                        <p className="text-slate-600">Laptop/tablet di dalam bilik. Hanya menampilkan surat suara — tidak pernah tahu siapa yang memilih. Tidak perlu kamera.</p>
+                    </div>
+                </div>
                 <form
                     className="flex flex-wrap items-end gap-3"
                     onSubmit={(e) => {
@@ -43,14 +54,27 @@ export default function Perangkat() {
                     }}
                 >
                     <div className="min-w-56 flex-1">
-                        <Field label="Nama tablet">{(id) => <input id={id} className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Tablet 1 – Aula" required />}</Field>
+                        <Field label="Nama perangkat">
+                            {(id) => <input id={id} className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'booth' ? 'Bilik 1' : 'Check-in 1 – Pintu aula'} required />}
+                        </Field>
+                    </div>
+                    <div className="min-w-48">
+                        <Field label="Peran">
+                            {(id) => (
+                                <select id={id} className="input" value={role} onChange={(e) => setRole(e.target.value)}>
+                                    <option value="checkin">Meja check-in</option>
+                                    <option value="booth">Bilik suara</option>
+                                </select>
+                            )}
+                        </Field>
                     </div>
                     <button className="btn-primary" disabled={register.isPending || !name}>
-                        Daftarkan tablet
+                        Daftarkan perangkat
                     </button>
                 </form>
-                <p className="mt-3 text-sm text-slate-500">
-                    Setelah didaftarkan, buka tautan pemasangan di Chrome tablet tersebut (sekali saja). Token hanya ditampilkan sekali. Bila tablet hilang/dipinjam, segera cabut.
+                <p className="text-sm text-slate-500">
+                    Setelah didaftarkan, buka tautan pemasangan di Chrome perangkat tersebut (sekali saja); perangkat otomatis membuka halaman sesuai perannya. Token hanya ditampilkan sekali. Bila
+                    perangkat hilang/dipinjam, segera cabut.
                 </p>
             </section>
 
@@ -65,6 +89,7 @@ export default function Perangkat() {
                             <thead>
                                 <tr>
                                     <th>Nama</th>
+                                    <th>Peran</th>
                                     <th>Status</th>
                                     <th>Terakhir terlihat</th>
                                     <th>IP</th>
@@ -75,6 +100,7 @@ export default function Perangkat() {
                                 {list.data.map((d) => (
                                     <tr key={d.id}>
                                         <td className="font-medium">{d.name}</td>
+                                        <td>{d.role === 'booth' ? <Badge color="blue">Bilik suara</Badge> : <Badge color="gray">Meja check-in</Badge>}</td>
                                         <td>{!d.is_active ? <Badge>Dicabut</Badge> : d.online ? <Badge color="green">Aktif</Badge> : <Badge color="yellow">Tidak terlihat</Badge>}</td>
                                         <td>{formatDateTime(d.last_seen_at)}</td>
                                         <td className="font-mono text-xs">{d.last_ip || '—'}</td>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BoothCredit;
 use App\Models\Election;
 use App\Models\Vote;
 use App\Models\Voter;
@@ -12,9 +13,10 @@ use Illuminate\Support\Facades\DB;
  * Snapshot "Hitung Langsung" — agregat per kandidat + partisipasi siswa/guru.
  * Di-cache 5 detik. Tidak ada rincian per kelas/jam.
  *
- * Selama voting, perolehan dihitung dari suara yang SUDAH DISEGEL (per kelompok
- * `seal_batch_size`), agar penonton tidak bisa menebak pilihan seseorang dengan
- * mengamati angka yang naik satu per satu tepat setelah orang itu memilih.
+ * Alur check-in → bilik: perolehan menghitung SEMUA suara yang masuk, langsung (tanpa menunggu
+ * segel ledger). Penyegelan batch tetap berjalan di belakang hanya untuk mengacak urutan ledger.
+ * Partisipasi = jumlah pemilih yang sudah check-in; `votes_pending` = sudah check-in tetapi
+ * belum memilih di bilik (antre / tidak jadi).
  */
 class ResultService
 {
@@ -32,10 +34,7 @@ class ResultService
 
     public function build(Election $election): array
     {
-        $final = in_array($election->status, [Election::CLOSED, Election::PUBLISHED], true);
-
         $counts = Vote::where('election_id', $election->id)
-            ->when(! $final, fn ($q) => $q->whereNotNull('seq'))
             ->select('candidate_id', DB::raw('COUNT(*) as total'))
             ->groupBy('candidate_id')
             ->pluck('total', 'candidate_id');
@@ -81,7 +80,7 @@ class ResultService
             'candidates' => $candidates,
             'votes_counted' => $counted,
             'votes_pending' => max(0, $all['voted'] - $counted),
-            'seal_batch_size' => (int) $election->setting('seal_batch_size'),
+            'booth_waiting' => BoothCredit::waiting($election->id)->count(),
             'participation' => ['students' => $students, 'teachers' => $teachers, 'all' => $all],
             'ledger' => [
                 'count' => (int) $election->ledger_count,

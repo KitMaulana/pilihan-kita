@@ -10,6 +10,7 @@ const CekResi = lazy(() => import('../pages/publik/CekResi'));
 // Kiosk
 const KioskPage = lazy(() => import('../pages/kiosk/KioskPage'));
 const PasangPerangkat = lazy(() => import('../pages/kiosk/PasangPerangkat'));
+const BilikPage = lazy(() => import('../pages/kiosk/BilikPage'));
 // Panitia
 const LoginPage = lazy(() => import('../pages/panitia/LoginPage'));
 const PanitiaLayout = lazy(() => import('../pages/panitia/PanitiaLayout'));
@@ -41,6 +42,7 @@ export default function AppRouter() {
 
                 <Route path="/kiosk" element={<KioskPage />} />
                 <Route path="/kiosk/pasang" element={<PasangPerangkat />} />
+                <Route path="/bilik" element={<BilikPage />} />
 
                 <Route path="/panitia/login" element={<LoginPage />} />
                 <Route

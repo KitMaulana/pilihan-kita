@@ -9,6 +9,7 @@ use App\Http\Requests\FallbackRequest;
 use App\Http\Requests\IdentifyRequest;
 use App\Http\Requests\VoteRequest;
 use App\Http\Resources\CandidateResource;
+use App\Models\BoothCredit;
 use App\Models\Election;
 use App\Models\KioskDevice;
 use App\Services\FaceMatchService;
@@ -24,7 +25,7 @@ class KioskController extends Controller
         $election = Election::current();
 
         return response()->json([
-            'device' => ['name' => $this->device($request)->name],
+            'device' => ['name' => $this->device($request)->name, 'role' => $this->device($request)->role],
             'election' => $election ? [
                 'name' => $election->name,
                 'status' => $election->status,
@@ -86,12 +87,22 @@ class KioskController extends Controller
         ));
     }
 
+    /**
+     * Bilik: apakah ada pemilih yang sudah check-in dan belum memilih?
+     * Hanya angka agregat — tidak ada identitas apa pun.
+     */
+    public function boothStatus(Request $request): JsonResponse
+    {
+        $waiting = BoothCredit::waiting($this->election($request)->id)->count();
+
+        return response()->json(['ready' => $waiting > 0, 'waiting' => $waiting]);
+    }
+
     public function vote(VoteRequest $request, VoteService $votes): JsonResponse
     {
         $result = $votes->cast(
             $this->election($request),
             $this->device($request),
-            $request->input('vote_token'),
             (int) $request->input('candidate_id'),
             $request->input('idempotency_key'),
         );

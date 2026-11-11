@@ -1,17 +1,15 @@
 import { create } from 'zustand';
-import { uuid } from '../../lib/device';
 
 /**
- * State satu sesi pemilih di kiosk. Direset penuh setelah selesai/batal
+ * State satu sesi pemilih di MEJA CHECK-IN. Direset penuh setelah selesai/batal
  * agar tidak ada sisa data pemilih sebelumnya di tablet.
  *
- * step: boot | scan | confirm | choose | done | fallback | message
+ * step: scan | confirm | done | fallback | message
  */
 const initial = {
     step: 'scan',
     identity: null, // { ticket, name, class_name, method, expiresAt }
-    vote: null, // { token, expiresAt, idempotencyKey }
-    receipt: null,
+    checkin: null, // { name, message, expiresIn } — ditampilkan sesaat di layar "check-in berhasil"
     message: null, // { tone, title, text, actions: ['retry','fallback','home'] }
     faceFailures: 0,
 };
@@ -34,14 +32,12 @@ export const useKiosk = create((set, get) => ({
             message: null,
         }),
 
-    confirmed: (data) =>
+    checkedIn: (data) =>
         set({
-            step: 'choose',
-            vote: { token: data.vote_token, expiresAt: Date.now() + data.expires_in * 1000, idempotencyKey: uuid() },
-            identity: { ...get().identity, ticket: null },
+            step: 'done',
+            checkin: { name: get().identity?.name, message: data.message, expiresIn: data.expires_in },
+            identity: null,
         }),
-
-    done: (receipt) => set({ step: 'done', receipt, vote: null, identity: null }),
 
     goFallback: () => set({ step: 'fallback', message: null }),
 

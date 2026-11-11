@@ -13,12 +13,15 @@ class VoteResetTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Pemilih teridentifikasi wajah → konfirmasi → memilih. Mengembalikan header tablet. */
+    private array $boothHeaders = [];
+
+    /** Check-in dengan wajah di meja check-in → memilih di bilik. */
     private function voteOnce(array $h, int $axis, int $candidateId): void
     {
+        $this->boothHeaders = $this->boothHeaders ?: $this->booth()[1];
         $ticket = $this->postJson('/api/v1/kiosk/identify', $this->identifyPayload($this->vec($axis)), $h)->assertOk()->json('ticket');
-        $token = $this->postJson('/api/v1/kiosk/confirm', ['ticket' => $ticket, 'accepted' => true], $h)->assertOk()->json('vote_token');
-        $this->postJson('/api/v1/kiosk/vote', ['vote_token' => $token, 'candidate_id' => $candidateId, 'idempotency_key' => (string) Str::uuid()], $h)->assertCreated();
+        $this->postJson('/api/v1/kiosk/confirm', ['ticket' => $ticket, 'accepted' => true], $h)->assertOk()->assertJsonPath('checked_in', true);
+        $this->boothVote($this->boothHeaders, $candidateId)->assertCreated();
     }
 
     public function test_admin_reset_semua_suara_lalu_pemilih_bisa_memilih_lagi(): void

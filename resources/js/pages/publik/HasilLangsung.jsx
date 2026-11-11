@@ -93,12 +93,7 @@ export default function HasilLangsung() {
                             </ul>
                             <p className="mt-5 text-xs text-slate-500">
                                 {number(data.votes_counted)} suara terhitung.
-                                {!data.is_final && data.votes_pending > 0 && (
-                                    <>
-                                        {' '}
-                                        {number(data.votes_pending)} suara terbaru menunggu penyegelan — demi kerahasiaan, suara dihitung per kelompok {data.seal_batch_size} suara.
-                                    </>
-                                )}
+                                {!data.is_final && data.booth_waiting > 0 && <> {number(data.booth_waiting)} pemilih sudah check-in dan sedang menuju bilik suara.</>}
                             </p>
                         </section>
 

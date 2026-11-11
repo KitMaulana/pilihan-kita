@@ -1,17 +1,23 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { kiosk, errorCode, errorMessage } from '../../lib/api';
-import { useKiosk } from './kioskStore';
-import { useCountdown } from './useCountdown';
+import { uuid } from '../../lib/device';
 
-export default function PilihKandidatPage() {
-    const vote = useKiosk((s) => s.vote);
-    const done = useKiosk((s) => s.done);
-    const showMessage = useKiosk((s) => s.showMessage);
+const CONFIRM_IDLE_MS = 60_000;
+
+/**
+ * Surat suara di BILIK. Tidak memegang data pemilih apa pun — server memakai satu
+ * hak masuk bilik anonim (hasil check-in) saat suara dikirim.
+ *
+ * Bila koneksi putus sesaat, suara dikirim ulang otomatis dengan idempotency key yang sama
+ * (server mengembalikan resi yang sama, tidak memakai hak masuk kedua). Pilihan hanya ada di memori.
+ */
+export default function PilihKandidatPage({ onDone, onFail }) {
     const [selected, setSelected] = useState(null);
     const [sending, setSending] = useState(false);
     const [retrying, setRetrying] = useState(false);
     const sendingRef = useRef(false);
+    const keyRef = useRef(uuid());
 
     const candidates = useQuery({
         queryKey: ['kiosk-candidates'],
@@ -19,43 +25,38 @@ export default function PilihKandidatPage() {
         staleTime: 60_000,
     });
 
-    const left = useCountdown(vote?.expiresAt, () => {
-        if (!sendingRef.current) {
-            showMessage({ tone: 'warning', title: 'Waktu habis', text: 'Waktu memilih habis dan suara belum dikirim. Silakan ulangi dari awal.', actions: ['home'] });
-        }
-    });
+    // Dialog konfirmasi ditutup sendiri bila dibiarkan (pemilih meninggalkan bilik).
+    useEffect(() => {
+        if (!selected || sending) return;
+        const t = setTimeout(() => setSelected(null), CONFIRM_IDLE_MS);
+        return () => clearTimeout(t);
+    }, [selected, sending]);
 
-    /**
-     * Kirim suara. Bila koneksi putus sesaat, kirim ulang otomatis dengan idempotency key
-     * yang sama (server mengembalikan resi yang sama) selama token belum kedaluwarsa.
-     * Pilihan hanya ada di memori, tidak disimpan ke penyimpanan tablet.
-     */
     async function submit() {
         if (sendingRef.current) return;
         sendingRef.current = true;
         setSending(true);
-        const payload = { vote_token: vote.token, candidate_id: selected.id, idempotency_key: vote.idempotencyKey };
+        const payload = { candidate_id: selected.id, idempotency_key: keyRef.current };
+        const giveUpAt = Date.now() + 45_000;
         for (;;) {
             try {
                 const { data } = await kiosk.post('/kiosk/vote', payload);
-                done(data.receipt_code);
+                onDone(data.receipt_code);
                 return;
             } catch (err) {
                 const code = errorCode(err);
-                const transient = code === 'network' || code.startsWith('http_5') || code === 'rate_limited';
-                if (transient && Date.now() < vote.expiresAt + 30_000) {
+                const transient = code === 'network' || code.startsWith('http_5') || code === 'rate_limited' || code === 'busy';
+                if (transient && Date.now() < giveUpAt) {
                     setRetrying(true);
                     await new Promise((r) => setTimeout(r, 2500));
                     continue;
                 }
                 sendingRef.current = false;
                 setSending(false);
-                showMessage({
-                    tone: code === 'already_voted' ? 'info' : 'danger',
-                    title: code === 'already_voted' ? 'Suara sudah tercatat' : 'Suara gagal dikirim',
-                    text: errorMessage(err),
-                    actions: ['home'],
-                });
+                setRetrying(false);
+                setSelected(null);
+                keyRef.current = uuid();
+                onFail(code, errorMessage(err));
                 return;
             }
         }
@@ -63,14 +64,9 @@ export default function PilihKandidatPage() {
 
     return (
         <div className="flex flex-1 flex-col px-4 pb-6">
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-                <div>
-                    <h1 className="text-2xl font-extrabold sm:text-3xl">Pilih Ketua OSIS</h1>
-                    <p className="text-brand-100">Sentuh kartu kandidat pilihan Anda.</p>
-                </div>
-                <p className="text-sm text-brand-100" aria-live="polite">
-                    Sisa waktu <span className="tabular-nums text-lg font-bold text-white">{left}</span> dtk
-                </p>
+            <div className="mb-4">
+                <h1 className="text-2xl font-extrabold sm:text-3xl">Pilih Ketua OSIS</h1>
+                <p className="text-brand-100">Sentuh kartu kandidat pilihan Anda. Pilihan Anda rahasia.</p>
             </div>
 
             {candidates.isLoading && <p>Memuat kandidat…</p>}

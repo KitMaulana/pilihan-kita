@@ -41,7 +41,7 @@ export default function Dashboard() {
             )}
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Stat label="Sudah memilih" value={part ? `${number(part.all.voted)} / ${number(part.all.total)}` : '—'} sub={part ? `${percent(part.all.voted, part.all.total)}% partisipasi` : null} tone="good" />
+                <Stat label="Sudah check-in" value={part ? `${number(part.all.voted)} / ${number(part.all.total)}` : '—'} sub={part ? `${percent(part.all.voted, part.all.total)}% partisipasi · ${number(r.votes_counted)} suara masuk` : null} tone="good" />
                 <Stat
                     label="Terdaftar wajah"
                     value={`${number(data.voters.with_face)} / ${number(data.voters.total)}`}
@@ -76,10 +76,20 @@ export default function Dashboard() {
                     ) : (
                         <p className="text-slate-500">—</p>
                     )}
-                    {r && (
-                        <p className="mt-4 text-xs text-slate-500">
-                            {number(r.votes_counted)} tersegel · {number(r.votes_pending)} menunggu segel (batch {r.seal_batch_size})
-                        </p>
+                    {r && <p className="mt-4 text-xs text-slate-500">{number(r.votes_counted)} suara masuk · dihitung langsung (real-time)</p>}
+                    {data.booth && (
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-xl bg-brand-50 p-3">
+                                <p className="text-sm text-brand-800">Antre di bilik suara</p>
+                                <p className="text-2xl font-bold text-brand-900 tabular-nums">{number(data.booth.waiting)}</p>
+                                <p className="text-xs text-slate-500">Sudah check-in, belum memilih</p>
+                            </div>
+                            <div className={`rounded-xl p-3 ${data.booth.expired ? 'bg-amber-50' : 'bg-slate-50'}`}>
+                                <p className="text-sm text-slate-700">Hak masuk bilik hangus</p>
+                                <p className="text-2xl font-bold tabular-nums">{number(data.booth.expired)}</p>
+                                <p className="text-xs text-slate-500">Check-in tetapi tidak memilih dalam {Math.round(data.booth.ttl / 60)} menit</p>
+                            </div>
+                        </div>
                     )}
                     {part && (
                         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -110,7 +120,9 @@ export default function Dashboard() {
                     <ul className="space-y-2">
                         {data.devices.map((d) => (
                             <li key={d.id} className="flex items-center justify-between gap-2 text-sm">
-                                <span className="truncate">{d.name}</span>
+                                <span className="truncate">
+                                    {d.name} <span className="text-xs text-slate-500">· {d.role === 'booth' ? 'bilik' : 'check-in'}</span>
+                                </span>
                                 {!d.is_active ? <Badge color="gray">Dicabut</Badge> : d.online ? <Badge color="green">Aktif</Badge> : <Badge color="yellow">Tidak terlihat</Badge>}
                             </li>
                         ))}

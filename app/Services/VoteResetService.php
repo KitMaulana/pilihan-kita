@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Reset SEMUA suara satu pemilihan (untuk uji coba / gladi dengan data nyata).
  *
- * Menghapus: suara + ledger, penanda sudah memilih, tiket sesi kiosk.
+ * Menghapus: suara + ledger, penanda sudah check-in, tiket sesi kiosk, antrean hak masuk bilik.
  * Mengembalikan: voters.has_voted = false untuk pemilih pemilihan ini.
  * TIDAK menyentuh: pemilih, kandidat, template wajah, jadwal, status pemilihan, log aktivitas.
  * Ditolak bila hasil sudah dipublikasikan (hasil final tidak boleh diubah).
@@ -32,6 +32,7 @@ class VoteResetService
             $voterIds = DB::table('voter_turnouts')->where('election_id', $locked->id)->pluck('voter_id');
 
             $tickets = DB::table('ballot_tickets')->where('election_id', $locked->id)->delete();
+            DB::table('booth_credits')->where('election_id', $locked->id)->delete(); // antrean bilik ikut dikosongkan
             $votes = DB::table('votes')->where('election_id', $locked->id)->delete();
             DB::table('voter_turnouts')->where('election_id', $locked->id)->delete();
             $voters = $voterIds->chunk(500)->sum(

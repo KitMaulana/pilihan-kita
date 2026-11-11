@@ -54,11 +54,35 @@ abstract class TestCase extends BaseTestCase
     }
 
     /** @return array{0: KioskDevice, 1: array<string,string>} */
-    protected function device(string $name = 'Tablet 1'): array
+    protected function device(string $name = 'Tablet 1', string $role = KioskDevice::CHECKIN): array
     {
-        [$device, $token] = KioskDevice::register($name);
+        [$device, $token] = KioskDevice::register($name, null, $role);
 
         return [$device, ['X-Device-Token' => $token, 'Accept' => 'application/json']];
+    }
+
+    /** @return array{0: KioskDevice, 1: array<string,string>} */
+    protected function booth(string $name = 'Bilik 1'): array
+    {
+        return $this->device($name, KioskDevice::BOOTH);
+    }
+
+    /** Check-in lewat jalur cadangan NISN + tanggal lahir di meja check-in. */
+    protected function checkInByNisn(array $checkinHeaders, string $nisn, string $birthDate = '2008-05-17'): void
+    {
+        $ticket = $this->postJson('/api/v1/kiosk/fallback', ['type' => 'student', 'identifier' => $nisn, 'birth_date' => $birthDate], $checkinHeaders)
+            ->assertOk()->json('ticket');
+        $this->postJson('/api/v1/kiosk/confirm', ['ticket' => $ticket, 'accepted' => true], $checkinHeaders)
+            ->assertOk()->assertJsonPath('checked_in', true);
+    }
+
+    /** Memilih di bilik suara. Mengembalikan respons. */
+    protected function boothVote(array $boothHeaders, int $candidateId, ?string $key = null): \Illuminate\Testing\TestResponse
+    {
+        return $this->postJson('/api/v1/kiosk/vote', [
+            'candidate_id' => $candidateId,
+            'idempotency_key' => $key ?? (string) \Illuminate\Support\Str::uuid(),
+        ], $boothHeaders);
     }
 
     /** Vektor satuan berarah sumbu-i (+ campuran kecil sumbu lain bila diberikan). */

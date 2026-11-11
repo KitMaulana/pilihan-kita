@@ -21,8 +21,9 @@ class DeviceController extends Controller
     /** Token polos hanya ditampilkan SEKALI di respons ini. */
     public function store(DeviceStoreRequest $request, AuditService $audit): JsonResponse
     {
-        [$device, $plain] = KioskDevice::register($request->input('name'), $request->user()->id);
-        $audit->log('device.registered', $device, ['name' => $device->name]);
+        $role = $request->input('role', KioskDevice::CHECKIN);
+        [$device, $plain] = KioskDevice::register($request->input('name'), $request->user()->id, $role);
+        $audit->log('device.registered', $device, ['name' => $device->name, 'role' => $role]);
 
         return response()->json([
             'device' => new KioskDeviceResource($device),

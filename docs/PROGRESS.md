@@ -22,7 +22,7 @@ Terakhir diperbarui: 2026-11-10.
 
 ## Keputusan improvisasi (perlu diketahui pemilik)
 
-1. **Penyegelan ledger per batch acak.** Suara baru masuk tanpa nomor urut; tiap `seal_batch_size` (bawaan 10) suara, kelompok itu diacak (CSPRNG) lalu dirantai hash. Alasannya: log percobaan (`voter_id` + menit) bisa dikorelasikan dengan urutan ledger bila urutan = urutan kedatangan. Live score juga hanya menghitung suara tersegel → angka naik per kelompok, sehingga penonton tidak bisa menebak pilihan seseorang dari kenaikan +1 tepat setelah ia memilih. Saat ditutup, sisa suara disegel paksa.
+1. **Penyegelan ledger per batch acak** *(sejak 2026-11-11 hanya untuk urutan ledger; hasil langsung real-time — lihat revisi alur)*. Suara baru masuk tanpa nomor urut; tiap `seal_batch_size` (bawaan 10) suara, kelompok itu diacak (CSPRNG) lalu dirantai hash. Alasannya: log percobaan (`voter_id` + menit) bisa dikorelasikan dengan urutan ledger bila urutan = urutan kedatangan. Live score juga hanya menghitung suara tersegel → angka naik per kelompok, sehingga penonton tidak bisa menebak pilihan seseorang dari kenaikan +1 tepat setelah ia memilih. Saat ditutup, sisa suara disegel paksa.
 2. **UUIDv4 manual** untuk `votes.id` — trait `HasUuids` Laravel 12 menghasilkan UUIDv7 (memuat waktu).
 3. **`voters` tanpa `updated_at`** (jika ada, kolom itu menjadi stempel waktu memilih). Penanda sudah memilih di `voter_turnouts` (PK komposit, tanpa waktu, tanpa auto-increment).
 4. **Token tablet = hash SHA-256 di `kiosk_devices.token_hash`** (bukan tabel Sanctum) agar pencabutan langsung & sederhana. Tautan pemasangan memakai fragmen `#token=` agar token tidak tercatat di log server.
@@ -42,9 +42,20 @@ Terakhir diperbarui: 2026-11-10.
 
 5. **Reset semua suara (2026-11-11, khusus admin)** — menu Jadwal & Status → "Reset suara (uji coba)". `POST /panitia/election/reset-votes` (`VoteResetService`), konfirmasi ketik `RESET SUARA`. Menghapus suara + ledger + tiket + penanda sudah memilih, `has_voted` dikembalikan; opsional hapus log percobaan & buka kunci pemilih. Pemilih, kandidat, wajah, jadwal, status tetap. Ditolak bila `published`. Tercatat `votes.reset_all`. **Pembatalan satu suara (via kode resi) belum dibuat** — menunggu keputusan pemilik; pembatalan per nama pemilih tidak mungkin karena `votes` sengaja tanpa identitas (§5.2).
 
+## Revisi alur 2026-11-11 — CHECK-IN → BILIK SUARA (keputusan pemilik)
+
+- **Dua jenis perangkat** (`kiosk_devices.role`): **Meja check-in** (`/kiosk`) = scan wajah / NISN → konfirmasi nama → *check-in*; **Bilik suara** (`/bilik`) = hanya surat suara. Middleware `kiosk.role:*` memisahkan endpoint (bilik tidak bisa identify/fallback; check-in tidak bisa melihat surat suara/vote).
+- **Check-in** (`POST /kiosk/confirm` accepted) dalam satu transaksi: `voter_turnouts` + `has_voted` + satu **hak masuk bilik anonim** (`booth_credits`: UUIDv4, `election_id`, `expires_at` — tanpa voter_id/device_id/created_at). Berlaku `booth_credit_ttl` (bawaan 900 dtk), lewat itu hangus.
+- **Bilik**: `GET /kiosk/booth/status` (polling 3 dtk) → surat suara tampil bila ada hak masuk → `POST /kiosk/vote {candidate_id, idempotency_key}` memakai hak masuk tertua (FIFO, `FOR UPDATE`), sisipkan suara, hapus hak masuk. Resi tampil 8 dtk lalu kembali otomatis. Suara tanpa check-in → 409 `no_checkin`.
+- **Hasil langsung real-time**: `ResultService` menghitung semua suara (tidak lagi menunggu segel). Segel batch tetap jalan di belakang hanya untuk mengacak urutan ledger. Cache 5 dtk tetap.
+- **Rekonsiliasi ledger** baru: `suara + hak masuk tersisa (antre + hangus) = jumlah check-in`. Penutupan menghanguskan antrean. Reset suara ikut mengosongkan antrean. Dasbor: "Sudah check-in", "Antre di bilik", "Hak masuk hangus".
+- **Risiko sisa (diterima pemilik):** live score real-time + urutan bilik ≈ urutan check-in → pengamat yang melihat siapa masuk bilik lalu memantau live score saat itu bisa menebak pilihan bila antrean sepi. Mitigasi praktis: layar live score jangan diletakkan di area bilik; ≥2 bilik.
+- **Deploy:** wajib `php artisan migrate --force` (tabel `booth_credits`, kolom `role`). Perangkat lama otomatis berperan **meja check-in**; laptop bilik harus didaftarkan baru dengan peran **Bilik suara**.
+- `scripts/loadtest.mjs` kini butuh `--tokens=<check-in>` dan `--booths=<bilik>`.
+
 ## Uji yang sudah dijalankan
 
-- `php artisan test` → **76 lulus** (2026-11-11) (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
+- `php artisan test` → **81 lulus** (2026-11-11, alur check-in → bilik) (impor, wajah, identifikasi, cadangan & kunci, voting atomik, idempotensi, kerahasiaan skema, ledger & deteksi manipulasi, cache hasil, otorisasi, simulasi, header keamanan, tidak ada vektor di log).
 - `npm run build` sukses (build 788 KB; runtime WASM terpisah di `public/wasm/`).
 - Uji HTTP end-to-end (login+CSRF → daftar tablet → buka → cadangan → konfirmasi → suara → replay → tolak memilih ulang).
 - Chrome headless + CDP: 360 px (beranda, hasil, resi, login, dasbor) tanpa scroll horizontal & tanpa error konsol; alur kiosk lewat klik sampai resi.

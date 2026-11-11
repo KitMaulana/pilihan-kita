@@ -24,6 +24,7 @@ class ElectionUpdateRequest extends FormRequest
             'settings.max_fallback_attempts' => ['sometimes', 'integer', 'between:1,10'],
             'settings.ticket_identified_ttl' => ['sometimes', 'integer', 'between:30,600'],
             'settings.ticket_vote_ttl' => ['sometimes', 'integer', 'between:60,900'],
+            'settings.booth_credit_ttl' => ['sometimes', 'integer', 'between:120,3600'],
             'settings.seal_batch_size' => ['sometimes', 'integer', 'between:1,100'],
             'settings.require_liveness' => ['sometimes', 'boolean'],
         ];

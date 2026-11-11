@@ -101,10 +101,10 @@ function SettingsForm({ election }) {
                 <Field label="Waktu konfirmasi nama (detik)">
                     {(id) => <input id={id} type="number" min="30" max="600" className="input" value={s.ticket_identified_ttl} onChange={setS('ticket_identified_ttl')} />}
                 </Field>
-                <Field label="Waktu memilih (detik)">
-                    {(id) => <input id={id} type="number" min="60" max="900" className="input" value={s.ticket_vote_ttl} onChange={setS('ticket_vote_ttl')} />}
+                <Field label="Batas waktu check-in → bilik (detik)" hint="Lewat dari ini, hak masuk bilik hangus (900 = 15 menit).">
+                    {(id) => <input id={id} type="number" min="120" max="3600" className="input" value={s.booth_credit_ttl} onChange={setS('booth_credit_ttl')} />}
                 </Field>
-                <Field label="Ukuran batch segel ledger" hint="Hasil langsung naik per kelompok ini (kerahasiaan).">
+                <Field label="Ukuran batch segel ledger" hint="Hanya mengacak urutan ledger; hasil langsung tetap real-time.">
                     {(id) => <input id={id} type="number" min="1" max="100" className="input" value={s.seal_batch_size} onChange={setS('seal_batch_size')} />}
                 </Field>
                 <label className="flex items-center gap-2 self-end pb-3">

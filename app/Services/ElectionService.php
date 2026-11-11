@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BallotTicket;
+use App\Models\BoothCredit;
 use App\Models\Election;
 use Illuminate\Validation\ValidationException;
 
@@ -46,6 +47,9 @@ class ElectionService
             $election->closed_at = now();
             $election->save();
             BallotTicket::where('election_id', $election->id)->delete();
+            // Pemilih yang sudah check-in tapi belum memilih tidak bisa lagi memakai bilik;
+            // hak masuknya tetap disimpan (kedaluwarsa) untuk rekonsiliasi check-in vs suara.
+            BoothCredit::waiting($election->id)->update(['expires_at' => now()]);
             $info['sealed'] = $this->ledger->seal($election, force: true);
             $info['verification'] = $this->ledger->verify($election);
         }

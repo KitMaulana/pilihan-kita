@@ -34,11 +34,17 @@ Route::prefix('v1')->group(function () {
     Route::prefix('kiosk')->middleware(['kiosk.device', 'throttle:kiosk-general'])->group(function () {
         Route::get('status', [KioskController::class, 'status']);
 
-        Route::middleware('voting.open')->group(function () {
-            Route::get('candidates', [KioskController::class, 'candidates']);
+        // Meja CHECK-IN: mengenali pemilih (wajah / NISN) lalu menerbitkan hak masuk bilik anonim.
+        Route::middleware(['voting.open', 'kiosk.role:checkin'])->group(function () {
             Route::post('identify', [KioskController::class, 'identify'])->middleware('throttle:kiosk-identify');
             Route::post('fallback', [KioskController::class, 'fallback'])->middleware('throttle:kiosk-fallback');
             Route::post('confirm', [KioskController::class, 'confirm'])->middleware('throttle:kiosk-vote');
+        });
+
+        // BILIK SUARA: tidak pernah menerima/mengirim identitas pemilih.
+        Route::middleware(['voting.open', 'kiosk.role:booth'])->group(function () {
+            Route::get('booth/status', [KioskController::class, 'boothStatus']);
+            Route::get('candidates', [KioskController::class, 'candidates']);
             Route::post('vote', [KioskController::class, 'vote'])->middleware('throttle:kiosk-vote');
         });
     });

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AccessAttempt;
+use App\Models\BoothCredit;
 use App\Models\Election;
 use App\Models\FaceTemplate;
 use App\Models\KioskDevice;
@@ -40,6 +41,12 @@ class DashboardService
                 'duplicates_flagged' => FaceTemplate::whereNotNull('duplicate_of_voter_id')->count(),
             ],
             'results' => $election ? $this->results->snapshot($election) : null,
+            // Antrean bilik: sudah check-in tapi belum memilih / tidak jadi memilih (kedaluwarsa).
+            'booth' => $election ? [
+                'waiting' => BoothCredit::waiting($election->id)->count(),
+                'expired' => BoothCredit::expired($election->id)->count(),
+                'ttl' => (int) $election->setting('booth_credit_ttl'),
+            ] : null,
             'devices' => $this->devices(),
             'anomalies' => $election ? $this->anomalies($election) : [],
         ];
@@ -50,6 +57,7 @@ class DashboardService
         return KioskDevice::orderBy('name')->get()->map(fn ($d) => [
             'id' => $d->id,
             'name' => $d->name,
+            'role' => $d->role,
             'is_active' => $d->is_active,
             'online' => $d->is_active && $d->last_seen_at && $d->last_seen_at->gt(now()->subMinutes(2)),
             'last_seen_at' => $d->last_seen_at?->toIso8601String(),

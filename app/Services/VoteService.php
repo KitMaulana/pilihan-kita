@@ -3,31 +3,31 @@
 namespace App\Services;
 
 use App\Exceptions\KioskException;
-use App\Models\BallotTicket;
+use App\Models\BoothCredit;
 use App\Models\Candidate;
 use App\Models\Election;
 use App\Models\KioskDevice;
 use App\Models\Vote;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * Pemungutan suara atomik (§6.5).
+ * Pemungutan suara di BILIK (§6.5, alur check-in → bilik).
  *
- * Satu transaksi: kunci tiket + baris pemilih → sisipkan voter_turnouts (PK komposit = jaminan
- * satu orang satu suara di level DB) → set voters.has_voted → sisipkan votes (tanpa identitas)
- * → hapus tiket. Idempotency key membuat pengiriman ulang mengembalikan resi yang sama.
+ * Bilik tidak pernah tahu siapa pemilihnya. Satu transaksi: ambil & kunci satu hak masuk
+ * bilik anonim yang masih berlaku (booth_credits, antrean FIFO) → sisipkan votes (tanpa
+ * identitas, UUIDv4, tanpa waktu) → hapus hak masuk tersebut. Jumlah suara tidak pernah bisa
+ * melebihi jumlah check-in. Idempotency key membuat pengiriman ulang mengembalikan resi yang sama.
  */
 class VoteService
 {
     private const RECEIPT_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
-    public function __construct(private KioskAccessService $access, private LedgerService $ledger) {}
+    public function __construct(private LedgerService $ledger) {}
 
     /** @return array{receipt_code: string, replayed: bool} */
-    public function cast(Election $election, KioskDevice $device, string $voteToken, int $candidateId, string $idempotencyKey): array
+    public function cast(Election $election, KioskDevice $device, int $candidateId, string $idempotencyKey): array
     {
         $idemKey = 'vote-idem:'.hash('sha256', $device->id.'|'.$idempotencyKey);
 
@@ -40,50 +40,43 @@ class VoteService
             throw new KioskException('invalid_candidate', 'Kandidat tidak valid. Silakan pilih ulang.');
         }
 
-        try {
-            $receipt = DB::transaction(function () use ($election, $device, $voteToken, $candidate) {
-                $ticket = $this->access->findTicket($election, $device, $voteToken, BallotTicket::CONFIRMED, lock: true);
-
-                // Kunci baris pemilih (FOR UPDATE) supaya permintaan paralel antre.
-                $voter = DB::table('voters')->where('id', $ticket->voter_id)->lockForUpdate()->first();
-
-                $already = DB::table('voter_turnouts')
-                    ->where('election_id', $election->id)->where('voter_id', $voter->id)->exists();
-                if ($already) {
-                    $ticket->delete();
-                    throw new KioskException('already_voted', 'Suara Anda sudah tercatat sebelumnya.', 409);
-                }
-
-                // Unique/PK constraint = pengaman terakhir bila dua transaksi lolos bersamaan.
-                DB::table('voter_turnouts')->insert(['election_id' => $election->id, 'voter_id' => $voter->id]);
-                // Query builder (bukan Eloquent) → tidak menyentuh kolom waktu apa pun.
-                DB::table('voters')->where('id', $voter->id)->update(['has_voted' => true]);
-
-                $vote = $this->insertVote($election, $candidate);
-                $ticket->delete();
-
-                return $vote->receipt_code;
-            }, 3);
-        } catch (QueryException $e) {
-            // Pelanggaran PK voter_turnouts → pemilih sudah memilih di transaksi lain.
-            if ($this->isUniqueViolation($e)) {
-                if ($cached = Cache::get($idemKey)) {
-                    return ['receipt_code' => $cached, 'replayed' => true];
-                }
-                throw new KioskException('already_voted', 'Suara Anda sudah tercatat sebelumnya.', 409);
-            }
-            throw $e;
-        } catch (KioskException $e) {
-            // Permintaan ulang paralel yang kalah balapan: tiket sudah terpakai oleh permintaan pertama.
-            if ($e->status === 410 && ($cached = Cache::get($idemKey))) {
-                return ['receipt_code' => $cached, 'replayed' => true];
-            }
-            throw $e;
+        // Kunci idempotensi singkat: dua kiriman paralel dengan key sama tidak memakai dua hak masuk.
+        $lock = Cache::lock($idemKey.':lock', 10);
+        if (! $lock->block(5)) {
+            throw new KioskException('busy', 'Sedang memproses. Silakan tunggu sebentar.', 429);
         }
 
-        Cache::put($idemKey, $receipt, now()->addMinutes(30));
+        try {
+            if ($cached = Cache::get($idemKey)) {
+                return ['receipt_code' => $cached, 'replayed' => true];
+            }
 
-        // Penyegelan batch ledger tidak boleh menggagalkan suara yang sudah tercatat.
+            $receipt = null;
+            // Ulangi bila hak masuk yang dikunci sudah dipakai bilik lain di transaksi paralel.
+            for ($try = 0; $try < 3 && ! $receipt; $try++) {
+                $receipt = DB::transaction(function () use ($election, $candidate) {
+                    $credit = BoothCredit::waiting($election->id)->orderBy('expires_at')->lockForUpdate()->first();
+                    if (! $credit) {
+                        return null;
+                    }
+                    if (BoothCredit::whereKey($credit->id)->delete() !== 1) {
+                        return null; // sudah dipakai bilik lain
+                    }
+
+                    return $this->insertVote($election, $candidate)->receipt_code;
+                }, 3);
+            }
+
+            if (! $receipt) {
+                throw new KioskException('no_checkin', 'Belum ada pemilih yang check-in untuk bilik ini. Silakan check-in dulu di meja check-in, atau hubungi panitia.', 409);
+            }
+
+            Cache::put($idemKey, $receipt, now()->addMinutes(30));
+        } finally {
+            $lock->release();
+        }
+
+        // Penyegelan batch ledger (urutan diacak) tidak boleh menggagalkan suara yang sudah tercatat.
         try {
             $this->ledger->seal($election);
         } catch (Throwable $e) {
@@ -118,12 +111,5 @@ class VoteService
         }
 
         return substr($chars, 0, 4).'-'.substr($chars, 4, 4).'-'.substr($chars, 8, 2);
-    }
-
-    private function isUniqueViolation(QueryException $e): bool
-    {
-        $code = (string) ($e->errorInfo[0] ?? $e->getCode());
-
-        return $code === '23000' || str_contains(strtolower($e->getMessage()), 'unique');
     }
 }

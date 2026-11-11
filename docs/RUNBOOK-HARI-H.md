@@ -6,14 +6,14 @@
 - [ ] Periksa filter **"Wajah ganda ditandai"** — pastikan bukan salah unggah foto.
 - [ ] Kandidat lengkap (nomor, nama, kelas, foto, visi-misi) — **terkunci setelah dibuka**.
 - [ ] Ambang & margin dari Fase 3 sudah disimpan (**Jadwal & Status → Aturan pengenalan wajah**).
-- [ ] Daftarkan tablet (**Perangkat**), buka tautan pemasangan di tiap tablet; tablet lama/tak dipakai → **Cabut**.
+- [ ] Daftarkan perangkat di **Perangkat** dengan peran yang benar: tablet berkamera = **Meja check-in** (`/kiosk`), laptop/tablet di dalam bilik = **Bilik suara** (`/bilik`). Buka tautan pemasangan di tiap perangkat; perangkat lama/tak dipakai → **Cabut**.
 - [ ] Gladi bersih: **Jadwal → Buat simulasi** → uji di semua tablet (wajah relawan + cadangan NISN 99xxxxxxxx / 2008-01-01) → cek **Hasil Langsung** & **Log**.
 - [ ] **Hapus semua data simulasi** (ketik `HAPUS SIMULASI`). Pastikan header panel tidak lagi menampilkan "SIMULASI".
 - [ ] Atur jam buka & tutup (WIB). Status tetap **Draf** sampai pagi hari-H.
 - [ ] Cadangkan database.
 
 ## Pagi hari-H
-- [ ] Tablet terisi penuh & dicolok; Chrome terbuka di `/kiosk`; tekan ⛶ (layar penuh).
+- [ ] Perangkat terisi penuh & dicolok; Chrome terbuka di `/kiosk` (meja check-in) atau `/bilik` (bilik suara); tekan ⛶ (layar penuh). Layar bilik menghadap ke dalam bilik, tidak terlihat dari antrean.
 - [ ] **Screen pinning** aktif (Pengaturan → Keamanan → Sematkan aplikasi).
 - [ ] Kecerahan maksimum, auto-lock nonaktif, izin kamera diberikan.
 - [ ] Tablet **menghadap sumber cahaya**, tidak membelakangi jendela; latar polos; lampu tambahan bila redup.

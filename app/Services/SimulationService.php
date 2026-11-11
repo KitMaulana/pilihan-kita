@@ -88,6 +88,7 @@ class SimulationService
             $attempts = AccessAttempt::whereIn('election_id', $electionIds)->orWhereIn('voter_id', $voterIds)->delete();
             DB::table('voter_turnouts')->whereIn('election_id', $electionIds)->delete();
             DB::table('ballot_tickets')->whereIn('election_id', $electionIds)->delete();
+            DB::table('booth_credits')->whereIn('election_id', $electionIds)->delete();
             $votes = DB::table('votes')->whereIn('election_id', $electionIds)->delete();
             Candidate::whereIn('election_id', $electionIds)->delete();
             $elections = Election::whereIn('id', $electionIds)->delete();

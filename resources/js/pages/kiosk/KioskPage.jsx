@@ -1,65 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { kiosk, errorCode, errorMessage } from '../../lib/api';
 import { getDeviceToken } from '../../lib/device';
-import { formatTime } from '../../lib/format';
 import { loadFaceEngine } from '../../features/face/faceEngine';
 import { loadLiveness } from '../../features/face/liveness';
 import { MODEL_VERSION } from '../../features/face/config';
 import { useKiosk } from './kioskStore';
+import { CenterCard, KioskHeader, Screen, useWakeLock } from './shell';
 import ScanStep from './ScanStep';
 import KonfirmasiPage from './KonfirmasiPage';
-import PilihKandidatPage from './PilihKandidatPage';
 import SelesaiPage from './SelesaiPage';
 import CadanganForm from './CadanganForm';
 import MessageStep from './MessageStep';
 
-function useWakeLock(active) {
-    useEffect(() => {
-        if (!active || !('wakeLock' in navigator)) return;
-        let lock = null;
-        const request = () =>
-            navigator.wakeLock
-                .request('screen')
-                .then((l) => (lock = l))
-                .catch(() => {});
-        request();
-        const onVis = () => document.visibilityState === 'visible' && request();
-        document.addEventListener('visibilitychange', onVis);
-        return () => {
-            document.removeEventListener('visibilitychange', onVis);
-            lock?.release().catch(() => {});
-        };
-    }, [active]);
-}
-
-function Clock() {
-    const [now, setNow] = useState(() => new Date());
-    useEffect(() => {
-        const t = setInterval(() => setNow(new Date()), 1000);
-        return () => clearInterval(t);
-    }, []);
-    return <span className="tabular-nums">{formatTime(now.toISOString(), false)} WIB</span>;
-}
-
-function Screen({ children, className = '' }) {
-    return <div className={`kiosk flex min-h-dvh flex-col bg-gradient-to-b from-brand-900 to-brand-800 text-white ${className}`}>{children}</div>;
-}
-
-function CenterCard({ title, children }) {
-    return (
-        <Screen>
-            <div className="flex flex-1 items-center justify-center p-4">
-                <div className="w-full max-w-lg rounded-3xl bg-white p-6 text-center text-slate-800 shadow-xl sm:p-8">
-                    <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-                    <div className="mt-3 text-slate-600">{children}</div>
-                </div>
-            </div>
-        </Screen>
-    );
-}
-
+/**
+ * MEJA CHECK-IN: kenali pemilih (wajah / NISN) → konfirmasi nama → check-in.
+ * Pemilih lalu menuju bilik suara (/bilik), yang tidak tahu identitasnya.
+ */
 export default function KioskPage() {
     const hasToken = !!getDeviceToken();
     const step = useKiosk((s) => s.step);
@@ -82,7 +40,8 @@ export default function KioskPage() {
         retry: (n, e) => errorCode(e) !== 'device_unauthorized' && n < 3,
     });
 
-    const open = !!status.data?.election?.is_voting_open;
+    const isBooth = status.data?.device?.role === 'booth';
+    const open = !!status.data?.election?.is_voting_open && !isBooth;
 
     useEffect(() => {
         if (!open || engine.ready) return;
@@ -131,6 +90,9 @@ export default function KioskPage() {
             </CenterCard>
         );
     }
+
+    // Perangkat bilik tidak boleh menjalankan check-in.
+    if (isBooth) return <Navigate to="/bilik" replace />;
 
     const election = status.data.election;
     if (status.data.model_version !== MODEL_VERSION) {
@@ -181,27 +143,10 @@ export default function KioskPage() {
 
     return (
         <Screen>
-            <header className="flex items-center justify-between gap-2 px-4 py-2 text-sm text-brand-100">
-                <span className="truncate font-semibold text-white">
-                    {election.name}
-                    {election.is_simulation && <span className="ml-2 rounded bg-amber-400 px-2 py-0.5 text-xs font-bold text-amber-950">SIMULASI</span>}
-                </span>
-                <span className="flex shrink-0 items-center gap-3">
-                    <span className="hidden sm:inline">{status.data.device.name}</span>
-                    <Clock />
-                    <button
-                        className="rounded-lg border border-white/30 px-2 py-1 text-xs"
-                        onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.())}
-                        aria-label="Layar penuh"
-                    >
-                        ⛶
-                    </button>
-                </span>
-            </header>
+            <KioskHeader title={election.name} badge="Check-in" deviceName={status.data.device.name} simulation={election.is_simulation} />
             <main className="flex flex-1 flex-col">
                 {step === 'scan' && (faceDisabled ? <CadanganForm /> : <ScanStep requireLiveness={election.require_liveness} />)}
                 {step === 'confirm' && <KonfirmasiPage />}
-                {step === 'choose' && <PilihKandidatPage />}
                 {step === 'done' && <SelesaiPage />}
                 {step === 'fallback' && <CadanganForm />}
                 {step === 'message' && <MessageStep />}

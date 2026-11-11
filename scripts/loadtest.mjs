@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Uji beban alur kiosk (identify → confirm → vote) terhadap server STAGING dengan data SIMULASI.
+// Uji beban alur meja check-in (identify → confirm) → bilik suara (vote) terhadap server STAGING dengan data SIMULASI.
 //
 // Persiapan (di server staging):
 //   php artisan simulation:create --voters=1700 --export=storage/simulation-vectors.json
-//   (daftarkan 3–6 tablet di panel → salin token-tokennya)
+//   (daftarkan perangkat meja check-in dan bilik suara di panel → salin token-tokennya)
 // Jalankan (dari laptop):
 //   node scripts/loadtest.mjs --base=https://staging.contoh.id --vectors=storage/simulation-vectors.json \
-//        --tokens=kd_xxx,kd_yyy,kd_zzz --rate=60 --count=300 --viewers=50
+//        --tokens=kd_checkin1,kd_checkin2 --booths=kd_bilik1,kd_bilik2,kd_bilik3 --rate=60 --count=300 --viewers=50
 // Setelah selesai: php artisan simulation:purge --force
 //
 // --rate     : pemilih per menit (puncak realistis ±60)
@@ -17,15 +17,16 @@ import { readFileSync } from 'node:fs';
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')));
 const base = (args.base || 'http://127.0.0.1:8000').replace(/\/$/, '');
-const tokens = (args.tokens || '').split(',').filter(Boolean);
+const tokens = (args.tokens || '').split(',').filter(Boolean); // meja check-in
+const boothTokens = (args.booths || '').split(',').filter(Boolean); // bilik suara
 const rate = Number(args.rate || 60);
 const count = Number(args.count || 100);
 const viewers = Number(args.viewers || 0);
 const noise = Number(args.noise ?? 0.25);
 const MODEL = args.model || 'buffalo_s/w600k_mbf';
 
-if (!tokens.length || !args.vectors) {
-    console.error('Wajib: --tokens=kd_a,kd_b --vectors=path.json');
+if (!tokens.length || !boothTokens.length || !args.vectors) {
+    console.error('Wajib: --tokens=kd_checkin --booths=kd_bilik --vectors=path.json');
     process.exit(1);
 }
 const voters = JSON.parse(readFileSync(args.vectors, 'utf8')).voters.slice(0, count);
@@ -65,17 +66,22 @@ function gauss() {
 
 const outcome = { voted: 0, failed: 0, reasons: {} };
 async function voter(v, i) {
+    // Meja check-in: identifikasi wajah → konfirmasi nama (check-in).
     const token = tokens[i % tokens.length];
     const id = await call('identify', 'POST', '/api/v1/kiosk/identify', token, { embedding: perturb(v.embedding), model_version: MODEL, liveness: { passed: true, challenges: ['blink', 'turn'] } });
     if (id.status !== 200) return fail(id);
     await new Promise((r) => setTimeout(r, 300 + Math.random() * 700)); // waktu membaca nama
     const cf = await call('confirm', 'POST', '/api/v1/kiosk/confirm', token, { ticket: id.data.ticket, accepted: true });
     if (cf.status !== 200) return fail(cf);
-    const cands = await call('candidates', 'GET', '/api/v1/kiosk/candidates', token);
+
+    // Bilik suara: berjalan ke bilik → status → surat suara → pilih.
+    const booth = boothTokens[i % boothTokens.length];
+    await new Promise((r) => setTimeout(r, 1000 + Math.random() * 2000)); // berjalan ke bilik
+    await call('booth_status', 'GET', '/api/v1/kiosk/booth/status', booth);
+    const cands = await call('candidates', 'GET', '/api/v1/kiosk/candidates', booth);
     const list = cands.data.data || [];
     await new Promise((r) => setTimeout(r, 500 + Math.random() * 1500)); // waktu memilih
-    const vt = await call('vote', 'POST', '/api/v1/kiosk/vote', token, {
-        vote_token: cf.data.vote_token,
+    const vt = await call('vote', 'POST', '/api/v1/kiosk/vote', booth, {
         candidate_id: list[Math.floor(Math.random() * list.length)]?.id,
         idempotency_key: crypto.randomUUID(),
     });
@@ -96,7 +102,7 @@ async function viewer() {
     }
 }
 
-console.log(`Uji beban: ${voters.length} pemilih @ ${rate}/menit, ${tokens.length} tablet, ${viewers} penonton → ${base}`);
+console.log(`Uji beban: ${voters.length} pemilih @ ${rate}/menit, ${tokens.length} meja check-in, ${boothTokens.length} bilik, ${viewers} penonton → ${base}`);
 const viewerTasks = Array.from({ length: viewers }, viewer);
 const started = performance.now();
 const tasks = [];

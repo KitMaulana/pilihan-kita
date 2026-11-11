@@ -30,8 +30,9 @@ export default function PasangPerangkat() {
         setDeviceToken(token.trim());
         try {
             const { data } = await kiosk.get('/kiosk/status');
-            setStatus({ type: 'success', text: `Perangkat terdaftar sebagai “${data.device.name}”. Mengalihkan ke kiosk…` });
-            setTimeout(() => navigate('/kiosk', { replace: true }), 1500);
+            const booth = data.device.role === 'booth';
+            setStatus({ type: 'success', text: `Perangkat terdaftar sebagai “${data.device.name}” (${booth ? 'bilik suara' : 'meja check-in'}). Mengalihkan…` });
+            setTimeout(() => navigate(booth ? '/bilik' : '/kiosk', { replace: true }), 1500);
         } catch (err) {
             previous ? setDeviceToken(previous) : clearDeviceToken();
             setStatus({ type: 'danger', text: errorMessage(err, 'Token tidak valid.') });
@@ -56,7 +57,7 @@ export default function PasangPerangkat() {
                 </button>
                 {getDeviceToken() && (
                     <button type="button" className="btn-ghost w-full" onClick={() => navigate('/kiosk')}>
-                        Kembali ke kiosk
+                        Kembali
                     </button>
                 )}
             </form>

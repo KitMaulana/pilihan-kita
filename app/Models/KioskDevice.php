@@ -7,7 +7,17 @@ use Illuminate\Support\Str;
 
 class KioskDevice extends Model
 {
-    protected $fillable = ['name', 'token_hash', 'is_active', 'last_seen_at', 'last_ip', 'revoked_at', 'created_by'];
+    /** Meja check-in: scan wajah / NISN, tahu identitas pemilih, TIDAK bisa memungut suara. */
+    public const CHECKIN = 'checkin';
+
+    /** Bilik suara: hanya menampilkan surat suara, TIDAK pernah tahu identitas pemilih. */
+    public const BOOTH = 'booth';
+
+    public const ROLES = [self::CHECKIN, self::BOOTH];
+
+    protected $attributes = ['role' => self::CHECKIN];
+
+    protected $fillable = ['name', 'role', 'token_hash', 'is_active', 'last_seen_at', 'last_ip', 'revoked_at', 'created_by'];
 
     protected $hidden = ['token_hash'];
 
@@ -30,11 +40,12 @@ class KioskDevice extends Model
      *
      * @return array{0: self, 1: string}
      */
-    public static function register(string $name, ?int $userId = null): array
+    public static function register(string $name, ?int $userId = null, string $role = self::CHECKIN): array
     {
         $plain = 'kd_'.Str::random(48);
         $device = static::create([
             'name' => $name,
+            'role' => $role,
             'token_hash' => static::hashToken($plain),
             'is_active' => true,
             'created_by' => $userId,

@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Exceptions\KioskException;
 use App\Models\AccessAttempt;
 use App\Models\BallotTicket;
+use App\Models\BoothCredit;
 use App\Models\Election;
 use App\Models\KioskDevice;
 use App\Models\Voter;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -108,15 +110,20 @@ class KioskAccessService
     }
 
     /**
-     * Pemilih menekan Ya/Tidak di layar konfirmasi nama.
+     * Pemilih menekan Ya/Tidak di layar konfirmasi nama (meja CHECK-IN).
      *
-     * @return array{vote_token?: string, expires_in?: int, confirmed: bool}
+     * "Ya" = CHECK-IN dalam satu transaksi:
+     *   voter_turnouts (PK = sekali seumur pemilihan) + voters.has_voted
+     *   + satu hak masuk bilik ANONIM (booth_credits, tanpa voter_id).
+     * Bilik suara kemudian memakai hak masuk mana pun yang tersedia, sehingga suara
+     * tidak pernah bisa dikaitkan ke pemilih yang check-in.
+     *
+     * @return array{confirmed: bool, checked_in?: bool, expires_in?: int, message?: string}
      */
     public function confirm(Election $election, KioskDevice $device, string $ticketToken, bool $accepted): array
     {
-        $ticket = $this->findTicket($election, $device, $ticketToken, BallotTicket::IDENTIFIED);
-
         if (! $accepted) {
+            $ticket = $this->findTicket($election, $device, $ticketToken, BallotTicket::IDENTIFIED);
             $ticket->delete();
             // Wajah cocok tapi pemilih bilang "bukan saya" = kemungkinan salah-kenal → tandai.
             $this->attempt($election, $device, $ticket->voter_id, $ticket->method, 'rejected',
@@ -125,15 +132,45 @@ class KioskAccessService
             return ['confirmed' => false];
         }
 
-        $plain = Str::random(48);
-        $ttl = (int) $election->setting('ticket_vote_ttl');
-        $ticket->update([
-            'token_hash' => hash('sha256', $plain),
-            'stage' => BallotTicket::CONFIRMED,
-            'expires_at' => now()->addSeconds($ttl),
-        ]);
+        $ttl = (int) $election->setting('booth_credit_ttl');
 
-        return ['confirmed' => true, 'vote_token' => $plain, 'expires_in' => $ttl];
+        try {
+            [$voterId, $method] = DB::transaction(function () use ($election, $device, $ticketToken, $ttl) {
+                $ticket = $this->findTicket($election, $device, $ticketToken, BallotTicket::IDENTIFIED, lock: true);
+                // Kunci baris pemilih supaya check-in paralel (dua meja) antre.
+                $voter = DB::table('voters')->where('id', $ticket->voter_id)->lockForUpdate()->first();
+
+                if (DB::table('voter_turnouts')->where('election_id', $election->id)->where('voter_id', $voter->id)->exists()) {
+                    $ticket->delete();
+                    throw new KioskException('already_voted', 'Anda sudah check-in / menggunakan hak pilih sebelumnya.', 409);
+                }
+
+                // PK komposit = pengaman terakhir satu orang satu hak pilih.
+                DB::table('voter_turnouts')->insert(['election_id' => $election->id, 'voter_id' => $voter->id]);
+                DB::table('voters')->where('id', $voter->id)->update(['has_voted' => true]);
+                BoothCredit::create(['election_id' => $election->id, 'expires_at' => now()->addSeconds($ttl)]);
+
+                $method = $ticket->method;
+                $ticket->delete();
+
+                return [$voter->id, $method];
+            }, 3);
+        } catch (QueryException $e) {
+            // Hanya pelanggaran PK voter_turnouts (check-in paralel) yang berarti "sudah check-in".
+            if ((string) ($e->errorInfo[0] ?? $e->getCode()) !== '23000' && ! str_contains(strtolower($e->getMessage()), 'unique')) {
+                throw $e;
+            }
+            throw new KioskException('already_voted', 'Anda sudah check-in / menggunakan hak pilih sebelumnya.', 409);
+        }
+
+        $this->attempt($election, $device, $voterId, $method, 'checked_in');
+
+        return [
+            'confirmed' => true,
+            'checked_in' => true,
+            'expires_in' => $ttl,
+            'message' => 'Check-in berhasil. Silakan menuju bilik suara yang kosong.',
+        ];
     }
 
     public function findTicket(Election $election, KioskDevice $device, string $plain, string $stage, bool $lock = false): BallotTicket
