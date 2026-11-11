@@ -44,7 +44,9 @@ class DashboardService
             'results' => $election ? $this->results->snapshot($election) : null,
             // Antrean bilik: sudah check-in tapi belum memilih (tidak hangus oleh waktu).
             'booth' => $election ? [
-                'waiting' => BoothCredit::waiting($election->id)->count(),
+                'waiting' => BoothCredit::waiting($election->id)->count(), // total sudah check-in, belum memilih
+                'queued' => BoothCredit::unclaimed($election->id)->count(), // antre, belum ada bilik kosong
+                'in_booths' => BoothCredit::claimed($election->id)->count(), // surat suara sedang tampil di bilik
             ] : null,
             'devices' => $this->devices($election),
             'anomalies' => $election ? $this->anomalies($election) : [],

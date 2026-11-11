@@ -64,7 +64,7 @@ class MultiSchoolTest extends TestCase
 
         // Check-in di A → hanya bilik A yang siap; bilik B tidak bisa memakai hak masuk A.
         $this->checkInByNisn($checkinA, '0071111111');
-        $this->getJson('/api/v1/kiosk/booth/status', $boothB)->assertJson(['ready' => false]);
+        $this->postJson('/api/v1/kiosk/booth/claim', [], $boothB)->assertJson(['ready' => false, 'waiting' => 0]);
         $this->boothVote($boothB, $b->candidates()->first()->id)->assertStatus(409)->assertJsonPath('code', 'no_checkin');
         $this->boothVote($boothA, $a->candidates()->first()->id)->assertCreated();
 

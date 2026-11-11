@@ -17,6 +17,8 @@ use App\Services\KioskAccessService;
 use App\Services\VoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class KioskController extends Controller
 {
@@ -89,16 +91,56 @@ class KioskController extends Controller
     }
 
     /**
-     * Bilik: apakah ada pemilih yang sudah check-in dan belum memilih?
-     * Hanya angka agregat — tidak ada identitas apa pun.
+     * Bilik: minta satu hak masuk. Bila bilik ini belum memegang hak masuk dan masih ada yang antre,
+     * satu hak masuk DIPESAN untuk bilik ini (surat suara tampil di sini, bukan di bilik lain).
+     * Idempotent: bilik yang sudah memegang pesanan tidak memesan lagi. Hanya angka — tanpa identitas.
      */
-    public function boothStatus(Request $request): JsonResponse
+    public function boothClaim(Request $request): JsonResponse
     {
-        $waiting = BoothCredit::waiting($this->election($request)->id)->count();
+        $election = $this->election($request);
+        $device = $this->device($request);
+        BoothCredit::releaseStale($election->id);
 
-        return response()->json(['ready' => $waiting > 0, 'waiting' => $waiting]);
+        // Serialisasi per bilik agar dua permintaan bersamaan tidak memesan dua hak masuk.
+        $lock = Cache::lock('booth-claim:'.$device->id, 10);
+        if ($lock->block(5)) {
+            try {
+                DB::transaction(function () use ($election, $device) {
+                    if (BoothCredit::heldBy($election->id, $device->id)->exists()) {
+                        return;
+                    }
+                    $credit = BoothCredit::unclaimed($election->id)->orderBy('queued_at')->lockForUpdate()->first();
+                    $credit?->update(['claimed_by' => $device->id]);
+                });
+            } finally {
+                $lock->release();
+            }
+        }
+
+        return response()->json($this->boothState($election->id, $device->id));
     }
 
+    /** Bilik: detak + apakah bilik ini masih memegang hak masuk (tanpa memesan baru). */
+    public function boothStatus(Request $request): JsonResponse
+    {
+        $election = $this->election($request);
+        BoothCredit::releaseStale($election->id);
+
+        return response()->json($this->boothState($election->id, $this->device($request)->id));
+    }
+
+    /** @return array{ready: bool, holding: bool, waiting: int, in_booths: int} */
+    private function boothState(int $electionId, int $deviceId): array
+    {
+        $holding = BoothCredit::heldBy($electionId, $deviceId)->exists();
+
+        return [
+            'ready' => $holding, // surat suara boleh tampil hanya bila bilik ini memegang hak masuk
+            'holding' => $holding,
+            'waiting' => BoothCredit::unclaimed($electionId)->count(), // masih antre, belum ada bilik
+            'in_booths' => BoothCredit::claimed($electionId)->count(), // sudah punya bilik
+        ];
+    }
     public function vote(VoteRequest $request, VoteService $votes): JsonResponse
     {
         $result = $votes->cast(

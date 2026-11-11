@@ -13,7 +13,7 @@ const CONFIRM_IDLE_MS = 60_000;
  * Bila koneksi putus sesaat, suara dikirim ulang otomatis dengan idempotency key yang sama
  * (server mengembalikan resi yang sama, tidak memakai hak masuk kedua). Pilihan hanya ada di memori.
  */
-export default function PilihKandidatPage({ onDone, onFail }) {
+export default function PilihKandidatPage({ onDone, onFail, onBusyChange }) {
     const [selected, setSelected] = useState(null);
     const [visionPreview, setVisionPreview] = useState(null);
     const [sending, setSending] = useState(false);
@@ -26,6 +26,11 @@ export default function PilihKandidatPage({ onDone, onFail }) {
         queryFn: () => kiosk.get('/kiosk/candidates').then((r) => r.data.data),
         staleTime: 60_000,
     });
+
+    // Beri tahu induk bila pemilih sudah mulai (jangan tarik layar saat ia sedang memilih).
+    useEffect(() => {
+        onBusyChange?.(!!selected || sending);
+    }, [selected, sending, onBusyChange]);
 
     // Dialog konfirmasi ditutup sendiri bila dibiarkan (pemilih meninggalkan bilik).
     useEffect(() => {

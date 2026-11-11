@@ -44,6 +44,7 @@ Route::prefix('v1')->group(function () {
 
         // BILIK SUARA: tidak pernah menerima/mengirim identitas pemilih.
         Route::middleware(['voting.open', 'kiosk.role:booth'])->group(function () {
+            Route::post('booth/claim', [KioskController::class, 'boothClaim']);
             Route::get('booth/status', [KioskController::class, 'boothStatus']);
             Route::get('candidates', [KioskController::class, 'candidates']);
             Route::post('vote', [KioskController::class, 'vote'])->middleware('throttle:kiosk-vote');

@@ -28,7 +28,7 @@ class VotingTest extends TestCase
         $voter = $this->voterWithFace(1);
 
         // Bilik belum siap sebelum ada yang check-in.
-        $this->getJson('/api/v1/kiosk/booth/status', $booth)->assertOk()->assertJson(['ready' => false, 'waiting' => 0]);
+        $this->postJson('/api/v1/kiosk/booth/claim', [], $booth)->assertOk()->assertJson(['ready' => false, 'waiting' => 0]);
 
         $ticket = $this->postJson('/api/v1/kiosk/identify', $this->identifyPayload($this->vec(1)), $checkin)->assertOk()->json('ticket');
         $res = $this->postJson('/api/v1/kiosk/confirm', ['ticket' => $ticket, 'accepted' => true], $checkin)
@@ -37,13 +37,14 @@ class VotingTest extends TestCase
 
         $this->assertTrue($voter->fresh()->has_voted);
         $this->assertDatabaseHas('voter_turnouts', ['election_id' => $election->id, 'voter_id' => $voter->id]);
-        $this->getJson('/api/v1/kiosk/booth/status', $booth)->assertJson(['ready' => true, 'waiting' => 1]);
+        // Bilik memesan hak masuk yang baru terbit: surat suara boleh tampil di bilik ini.
+        $this->postJson('/api/v1/kiosk/booth/claim', [], $booth)->assertJson(['ready' => true, 'holding' => true, 'waiting' => 0, 'in_booths' => 1]);
 
         $vote = $this->boothVote($booth, $election->candidates()->first()->id)->assertCreated();
         $this->assertMatchesRegularExpression('/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{2}$/', $vote->json('receipt_code'));
         $this->assertSame(1, Vote::count());
         $this->assertSame(0, BoothCredit::count(), 'Hak masuk bilik habis setelah dipakai.');
-        $this->getJson('/api/v1/kiosk/booth/status', $booth)->assertJson(['ready' => false]);
+        $this->postJson('/api/v1/kiosk/booth/claim', [], $booth)->assertJson(['ready' => false, 'in_booths' => 0]);
     }
 
     public function test_bilik_menolak_suara_tanpa_checkin_dan_satu_checkin_satu_suara(): void
@@ -103,7 +104,7 @@ class VotingTest extends TestCase
 
         // Pemilih yang sudah check-in pasti memilih: berapa lama pun ia berada di bilik / menunggu.
         $this->travel(3)->days();
-        $this->getJson("/api/v1/kiosk/booth/status", $booth)->assertJson(["ready" => true, "waiting" => 1]);
+        $this->postJson("/api/v1/kiosk/booth/claim", [], $booth)->assertJson(["ready" => true, "in_booths" => 1]);
         $this->boothVote($booth, $election->candidates()->first()->id)->assertCreated();
 
         $r = app(LedgerService::class)->verify($election);
@@ -302,7 +303,7 @@ class VotingTest extends TestCase
             $this->checkInByNisn($headers, Voter::factory()->create()->identifier);
         }
         $this->assertSame(5, BoothCredit::count());
-        $this->getJson("/api/v1/kiosk/booth/status", $booths[0])->assertJson(["waiting" => 5]);
+        $this->getJson("/api/v1/kiosk/booth/status", $booths[0])->assertJson(["waiting" => 5, "holding" => false]);
 
         // 10 bilik masing-masing mencoba memilih: tepat 5 berhasil, 5 ditolak.
         $ok = 0;

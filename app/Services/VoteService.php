@@ -54,8 +54,11 @@ class VoteService
             $receipt = null;
             // Ulangi bila hak masuk yang dikunci sudah dipakai bilik lain di transaksi paralel.
             for ($try = 0; $try < 3 && ! $receipt; $try++) {
-                $receipt = DB::transaction(function () use ($election, $candidate) {
-                    $credit = BoothCredit::waiting($election->id)->orderBy('queued_at')->lockForUpdate()->first();
+                $receipt = DB::transaction(function () use ($election, $candidate, $device) {
+                    // Utamakan hak masuk yang DIPESAN bilik ini; bila pesanannya sudah dilepas (bilik sempat
+                    // tidak terlihat), ambil yang masih antre. Hak masuk yang dipesan bilik lain tidak disentuh.
+                    $credit = BoothCredit::heldBy($election->id, $device->id)->lockForUpdate()->first()
+                        ?? BoothCredit::unclaimed($election->id)->orderBy('queued_at')->lockForUpdate()->first();
                     if (! $credit) {
                         return null;
                     }

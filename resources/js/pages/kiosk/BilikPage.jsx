@@ -15,8 +15,9 @@ const NOTICE_SECONDS = 6;
 
 /**
  * BILIK SUARA. Perangkat ini TIDAK pernah tahu siapa pemilihnya:
- *  - menunggu sampai ada pemilih yang sudah check-in (hak masuk bilik anonim di server),
- *  - menampilkan surat suara,
+ *  - menunggu sampai ada pemilih yang sudah check-in, lalu MEMESAN satu hak masuk bilik anonim di server
+ *    (surat suara hanya tampil di bilik yang berhasil memesan — bilik lain tetap di layar tunggu),
+ *  - menampilkan surat suara dan terus mengirim detak ke server selama surat suara terbuka,
  *  - menampilkan resi, lalu kembali otomatis untuk pemilih berikutnya.
  */
 export default function BilikPage() {
@@ -42,27 +43,48 @@ export default function BilikPage() {
     const open = !!status.data?.election?.is_voting_open;
 
     const [ballotOpen, setBallotOpen] = useState(false);
-    const booth = useQuery({
-        queryKey: ['booth-status'],
-        queryFn: () => kiosk.get('/kiosk/booth/status').then((r) => r.data),
-        enabled: hasToken && isBooth && open && view.name === 'idle' && !ballotOpen,
-        refetchInterval: 3000,
-    });
+    const [busy, setBusy] = useState(false); // pemilih sudah menyentuh kandidat / suara sedang dikirim
+    const live = hasToken && isBooth && open && view.name === 'idle';
 
-    // Sekali ada pemilih ter-check-in, surat suara tetap tampil sampai suara dikirim
-    // (tidak hilang tiba-tiba bila bilik lain memakai hak masuk terakhir).
+    // Layar tunggu: tiap 3 dtk minta hak masuk. Server hanya memberi bila masih ada yang antre
+    // DAN bilik ini belum memegang satu pun → surat suara tidak tampil di semua bilik sekaligus.
+    const claim = useQuery({
+        queryKey: ['booth-claim'],
+        queryFn: () => kiosk.post('/kiosk/booth/claim').then((r) => r.data),
+        enabled: live && !ballotOpen,
+        refetchInterval: 3000,
+        gcTime: 0,
+    });
     useEffect(() => {
-        if (booth.data?.ready && view.name === 'idle') setBallotOpen(true);
-    }, [booth.data?.ready, view.name]);
+        if (claim.data?.holding && view.name === 'idle') setBallotOpen(true);
+    }, [claim.data, view.name]);
+
+    // Surat suara terbuka: kirim detak tiap 5 dtk. Bila pesanan hilang (mis. bilik sempat putus > 2 menit
+    // lalu hak masuknya dipakai bilik lain) dan pemilih belum menyentuh apa pun → kembali ke layar tunggu.
+    const heartbeat = useQuery({
+        queryKey: ['booth-heartbeat'],
+        queryFn: () => kiosk.get('/kiosk/booth/status').then((r) => r.data),
+        enabled: live && ballotOpen,
+        refetchInterval: 5000,
+        gcTime: 0,
+    });
+    useEffect(() => {
+        if (ballotOpen && !busy && heartbeat.data && heartbeat.data.holding === false) {
+            qc.removeQueries({ queryKey: ['booth-claim'] });
+            setBallotOpen(false);
+            setRound((r) => r + 1);
+        }
+    }, [heartbeat.data, ballotOpen, busy, qc]);
 
     function backToStart() {
-        // Buang status antrean lama (masih "siap" dari pemilih sebelumnya) agar surat suara
-        // baru tampil lagi hanya setelah server memastikan ada pemilih berikutnya yang check-in.
-        qc.setQueryData(['booth-status'], { ready: false, waiting: 0 });
+        // Buang jawaban lama (masih "memegang" hak masuk yang baru dipakai) agar surat suara
+        // berikutnya tampil hanya setelah server memberi hak masuk baru ke bilik ini.
+        qc.removeQueries({ queryKey: ['booth-claim'] });
+        qc.removeQueries({ queryKey: ['booth-heartbeat'] });
+        setBusy(false);
         setBallotOpen(false);
         setView({ name: 'idle' });
         setRound((r) => r + 1);
-        qc.invalidateQueries({ queryKey: ['booth-status'] });
     }
 
     if (!hasToken) {
@@ -127,6 +149,7 @@ export default function BilikPage() {
                     (ballotOpen ? (
                         <PilihKandidatPage
                             key={round}
+                            onBusyChange={setBusy}
                             onDone={(receipt) => setView({ name: 'done', receipt })}
                             onFail={(code, text) =>
                                 setView({
@@ -137,7 +160,7 @@ export default function BilikPage() {
                             }
                         />
                     ) : (
-                        <Waiting error={booth.isError ? errorMessage(booth.error) : null} />
+                        <Waiting error={claim.isError ? errorMessage(claim.error) : null} />
                     ))}
             </main>
         </Screen>

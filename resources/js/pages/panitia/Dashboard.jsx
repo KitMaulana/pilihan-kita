@@ -167,8 +167,10 @@ export default function Dashboard() {
                                     <IconVoteBox className="size-5" />
                                 </span>
                                 <div>
-                                    <p className="text-sm font-bold text-brand-900">Antre di bilik suara</p>
-                                    <p className="text-xs text-slate-600">Sudah check-in, belum memilih. Hak masuk tidak hangus oleh waktu.</p>
+                                    <p className="text-sm font-bold text-brand-900">Sudah check-in, belum memilih</p>
+                                    <p className="text-xs text-slate-600">
+                                        {number(data.booth.in_booths ?? 0)} sedang di bilik · {number(data.booth.queued ?? data.booth.waiting)} menunggu bilik kosong. Hak masuk tidak hangus oleh waktu.
+                                    </p>
                                 </div>
                             </div>
                             <p className="font-mono text-3xl font-black text-brand-800 tabular-nums">{number(data.booth.waiting)}</p>
