@@ -271,4 +271,45 @@ class VotingTest extends TestCase
         Vote::query()->update(['nonce' => 'dimanipulasi']);
         $this->postJson('/api/v1/panitia/election/status', ['status' => 'published', 'confirm' => 'PUBLIKASI'])->assertStatus(422);
     }
+    public function test_banyak_meja_checkin_dan_banyak_bilik_berbagi_satu_antrean(): void
+    {
+        $election = $this->openElection();
+        $cid = $election->candidates()->first()->id;
+
+        $checkins = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $checkins[] = $this->device("Check-in {$i}")[1];
+        }
+        $booths = [];
+        for ($i = 1; $i <= 10; $i++) {
+            $booths[] = $this->booth("Bilik {$i}")[1];
+        }
+
+        // 5 pemilih check-in, tersebar di 5 meja berbeda.
+        foreach ($checkins as $i => $headers) {
+            $this->checkInByNisn($headers, Voter::factory()->create()->identifier);
+        }
+        $this->assertSame(5, BoothCredit::count());
+        $this->getJson("/api/v1/kiosk/booth/status", $booths[0])->assertJson(["waiting" => 5]);
+
+        // 10 bilik masing-masing mencoba memilih: tepat 5 berhasil, 5 ditolak.
+        $ok = 0;
+        $rejected = 0;
+        foreach ($booths as $headers) {
+            $res = $this->boothVote($headers, $cid);
+            if ($res->status() === 201) {
+                $ok++;
+            } else {
+                $res->assertStatus(409)->assertJsonPath("code", "no_checkin");
+                $rejected++;
+            }
+        }
+
+        $this->assertSame(5, $ok);
+        $this->assertSame(5, $rejected);
+        $this->assertSame(5, Vote::count());
+        $this->assertSame(0, BoothCredit::count());
+        $r = app(LedgerService::class)->verify($election);
+        $this->assertTrue($r["ok"], implode("; ", $r["errors"]));
+    }
 }
