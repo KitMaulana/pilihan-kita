@@ -87,7 +87,7 @@ export default function Perangkat() {
                         </Field>
                     </div>
                     <div className="min-w-48">
-                        <Field label="Peran">
+                        <Field label="Jenis perangkat">
                             {(id) => (
                                 <select id={id} className="input" value={role} onChange={(e) => setRole(e.target.value)}>
                                     <option value="checkin">Meja check-in</option>
@@ -172,6 +172,10 @@ export default function Perangkat() {
                         </button>
                     }
                 >
+                    <p className="mb-3 flex items-center gap-2 text-sm text-slate-700">
+                        Jenis perangkat: {created.device.role === 'booth' ? <Badge color="blue">Bilik suara</Badge> : <Badge color="gray">Meja check-in</Badge>}
+                        <span className="text-xs text-slate-500">→ otomatis membuka {created.device.role === 'booth' ? 'halaman bilik' : 'halaman check-in'}</span>
+                    </p>
                     <Alert type="warning">{created.message}</Alert>
                     <div className="mt-4 space-y-3">
                         <Field label="Tautan pemasangan (buka di tablet)">

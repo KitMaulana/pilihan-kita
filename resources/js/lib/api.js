@@ -40,6 +40,7 @@ api.interceptors.response.use(undefined, (error) => {
 });
 
 kiosk.interceptors.request.use((config) => {
+    if (config.headers['X-Device-Token']) return config; // diberikan eksplisit (uji token saat pemasangan)
     const token = getDeviceToken();
     if (token) config.headers['X-Device-Token'] = token;
     return config;

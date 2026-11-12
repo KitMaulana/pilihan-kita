@@ -1,16 +1,16 @@
 {
-  "_BallotModePicker-Cs7py9-t.js": {
-    "file": "assets/BallotModePicker-Cs7py9-t.js",
+  "_BallotModePicker-CylqqVv4.js": {
+    "file": "assets/BallotModePicker-CylqqVv4.js",
     "name": "BallotModePicker",
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_SessionSwitcher-CwA4zV_w.js"
+      "_SessionSwitcher-BdxubKp7.js"
     ]
   },
-  "_PublicShell-BxhZ5Qpa.js": {
-    "file": "assets/PublicShell-BxhZ5Qpa.js",
+  "_PublicShell-jW_iBC4-.js": {
+    "file": "assets/PublicShell-jW_iBC4-.js",
     "name": "PublicShell",
     "imports": [
       "_query-6iSOlmXk.js",
@@ -18,8 +18,8 @@
       "_react-BwOH24Qy.js"
     ]
   },
-  "_SessionSwitcher-CwA4zV_w.js": {
-    "file": "assets/SessionSwitcher-CwA4zV_w.js",
+  "_SessionSwitcher-BdxubKp7.js": {
+    "file": "assets/SessionSwitcher-BdxubKp7.js",
     "name": "SessionSwitcher",
     "imports": [
       "_query-6iSOlmXk.js",
@@ -28,19 +28,19 @@
       "_react-BwOH24Qy.js"
     ]
   },
-  "_faceEngine-CLo33VXO.js": {
-    "file": "assets/faceEngine-CLo33VXO.js",
+  "_faceEngine-BGODj8yV.js": {
+    "file": "assets/faceEngine-BGODj8yV.js",
     "name": "faceEngine",
     "imports": [
-      "_image-CCCNZFdK.js"
+      "_image-C3Jn0Y_M.js"
     ]
   },
   "_format-DNH2vf54.js": {
     "file": "assets/format-DNH2vf54.js",
     "name": "format"
   },
-  "_image-CCCNZFdK.js": {
-    "file": "assets/image-CCCNZFdK.js",
+  "_image-C3Jn0Y_M.js": {
+    "file": "assets/image-C3Jn0Y_M.js",
     "name": "image",
     "imports": [
       "resources/js/main.jsx"
@@ -49,11 +49,11 @@
       "node_modules/heic-to/dist/csp/heic-to.js"
     ]
   },
-  "_quality-BuSOuTQE.js": {
-    "file": "assets/quality-BuSOuTQE.js",
+  "_quality-6zEyTFZz.js": {
+    "file": "assets/quality-6zEyTFZz.js",
     "name": "quality",
     "imports": [
-      "_faceEngine-CLo33VXO.js"
+      "_faceEngine-BGODj8yV.js"
     ]
   },
   "_query-6iSOlmXk.js": {
@@ -67,16 +67,16 @@
       "_query-6iSOlmXk.js"
     ]
   },
-  "_useCamera-bKOCmz_S.js": {
-    "file": "assets/useCamera-bKOCmz_S.js",
+  "_useCamera-Bm6ifWXi.js": {
+    "file": "assets/useCamera-Bm6ifWXi.js",
     "name": "useCamera",
     "imports": [
-      "_faceEngine-CLo33VXO.js",
+      "_faceEngine-BGODj8yV.js",
       "_query-6iSOlmXk.js"
     ]
   },
-  "_useCountdown-L_XVzD__.js": {
-    "file": "assets/useCountdown-L_XVzD__.js",
+  "_useCountdown-2U4WQ0-Q.js": {
+    "file": "assets/useCountdown-2U4WQ0-Q.js",
     "name": "useCountdown",
     "imports": [
       "_query-6iSOlmXk.js",
@@ -91,12 +91,12 @@
     "isDynamicEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-BUoc3Mco.css",
+    "file": "assets/app-T_RqVqXn.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/main.jsx": {
-    "file": "assets/main-CeURVQh8.js",
+    "file": "assets/main-BoZk5gJG.js",
     "name": "main",
     "src": "resources/js/main.jsx",
     "isEntry": true,
@@ -126,36 +126,36 @@
     ]
   },
   "resources/js/pages/kiosk/BilikPage.jsx": {
-    "file": "assets/BilikPage-CWM5WAx-.js",
+    "file": "assets/BilikPage-CbPkMRdm.js",
     "name": "BilikPage",
     "src": "resources/js/pages/kiosk/BilikPage.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_useCountdown-L_XVzD__.js",
+      "_useCountdown-2U4WQ0-Q.js",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/kiosk/KioskPage.jsx": {
-    "file": "assets/KioskPage-CfJwKKkc.js",
+    "file": "assets/KioskPage-CUJjSDoE.js",
     "name": "KioskPage",
     "src": "resources/js/pages/kiosk/KioskPage.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_faceEngine-CLo33VXO.js",
-      "_useCamera-bKOCmz_S.js",
-      "_useCountdown-L_XVzD__.js",
+      "_faceEngine-BGODj8yV.js",
+      "_useCamera-Bm6ifWXi.js",
+      "_useCountdown-2U4WQ0-Q.js",
       "_react-BwOH24Qy.js",
-      "_image-CCCNZFdK.js",
+      "_image-C3Jn0Y_M.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/kiosk/PasangPerangkat.jsx": {
-    "file": "assets/PasangPerangkat-Cqq82EqA.js",
+    "file": "assets/PasangPerangkat-Sn7Ax7AZ.js",
     "name": "PasangPerangkat",
     "src": "resources/js/pages/kiosk/PasangPerangkat.jsx",
     "isDynamicEntry": true,
@@ -166,7 +166,7 @@
     ]
   },
   "resources/js/pages/panitia/Dashboard.jsx": {
-    "file": "assets/Dashboard-CCHF7Boy.js",
+    "file": "assets/Dashboard-9cec2AiS.js",
     "name": "Dashboard",
     "src": "resources/js/pages/panitia/Dashboard.jsx",
     "isDynamicEntry": true,
@@ -178,7 +178,7 @@
     ]
   },
   "resources/js/pages/panitia/Jadwal.jsx": {
-    "file": "assets/Jadwal-Dyi3hIlx.js",
+    "file": "assets/Jadwal-DYVLxLi_.js",
     "name": "Jadwal",
     "src": "resources/js/pages/panitia/Jadwal.jsx",
     "isDynamicEntry": true,
@@ -186,14 +186,14 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_SessionSwitcher-CwA4zV_w.js",
-      "_BallotModePicker-Cs7py9-t.js",
+      "_SessionSwitcher-BdxubKp7.js",
+      "_BallotModePicker-CylqqVv4.js",
       "resources/js/pages/panitia/PanitiaLayout.jsx",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/panitia/Kandidat.jsx": {
-    "file": "assets/Kandidat-DPFBsUZv.js",
+    "file": "assets/Kandidat-CIilCknS.js",
     "name": "Kandidat",
     "src": "resources/js/pages/panitia/Kandidat.jsx",
     "isDynamicEntry": true,
@@ -201,14 +201,14 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "resources/js/pages/panitia/PanitiaLayout.jsx",
-      "_image-CCCNZFdK.js",
+      "_image-C3Jn0Y_M.js",
       "_react-BwOH24Qy.js",
-      "_SessionSwitcher-CwA4zV_w.js",
+      "_SessionSwitcher-BdxubKp7.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/Log.jsx": {
-    "file": "assets/Log-DizilgXA.js",
+    "file": "assets/Log-BjWk5RMf.js",
     "name": "Log",
     "src": "resources/js/pages/panitia/Log.jsx",
     "isDynamicEntry": true,
@@ -220,7 +220,7 @@
     ]
   },
   "resources/js/pages/panitia/LoginPage.jsx": {
-    "file": "assets/LoginPage-BG-JN27T.js",
+    "file": "assets/LoginPage-CViug6-T.js",
     "name": "LoginPage",
     "src": "resources/js/pages/panitia/LoginPage.jsx",
     "isDynamicEntry": true,
@@ -231,20 +231,20 @@
     ]
   },
   "resources/js/pages/panitia/PanitiaLayout.jsx": {
-    "file": "assets/PanitiaLayout-BuncVTpj.js",
+    "file": "assets/PanitiaLayout-3cMqlvcy.js",
     "name": "PanitiaLayout",
     "src": "resources/js/pages/panitia/PanitiaLayout.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_SessionSwitcher-CwA4zV_w.js",
+      "_SessionSwitcher-BdxubKp7.js",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/Pemilih.jsx": {
-    "file": "assets/Pemilih-Jp5pUBTN.js",
+    "file": "assets/Pemilih-DYzYfH8G.js",
     "name": "Pemilih",
     "src": "resources/js/pages/panitia/Pemilih.jsx",
     "isDynamicEntry": true,
@@ -256,20 +256,20 @@
     ]
   },
   "resources/js/pages/panitia/Pengguna.jsx": {
-    "file": "assets/Pengguna-Cihrtg1N.js",
+    "file": "assets/Pengguna-ZtFFumyK.js",
     "name": "Pengguna",
     "src": "resources/js/pages/panitia/Pengguna.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_SessionSwitcher-CwA4zV_w.js",
+      "_SessionSwitcher-BdxubKp7.js",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/Perangkat.jsx": {
-    "file": "assets/Perangkat--85_sQVd.js",
+    "file": "assets/Perangkat-ClmjRrdk.js",
     "name": "Perangkat",
     "src": "resources/js/pages/panitia/Perangkat.jsx",
     "isDynamicEntry": true,
@@ -281,7 +281,7 @@
     ]
   },
   "resources/js/pages/panitia/Sesi.jsx": {
-    "file": "assets/Sesi-CR7XmJwX.js",
+    "file": "assets/Sesi-BbJCHeRw.js",
     "name": "Sesi",
     "src": "resources/js/pages/panitia/Sesi.jsx",
     "isDynamicEntry": true,
@@ -289,31 +289,31 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_SessionSwitcher-CwA4zV_w.js",
-      "_BallotModePicker-Cs7py9-t.js",
+      "_SessionSwitcher-BdxubKp7.js",
+      "_BallotModePicker-CylqqVv4.js",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/panitia/UjiWajah.jsx": {
-    "file": "assets/UjiWajah-BVfDr8yI.js",
+    "file": "assets/UjiWajah-CFf0uyHH.js",
     "name": "UjiWajah",
     "src": "resources/js/pages/panitia/UjiWajah.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_useCamera-bKOCmz_S.js",
-      "_faceEngine-CLo33VXO.js",
-      "_quality-BuSOuTQE.js",
+      "_useCamera-Bm6ifWXi.js",
+      "_faceEngine-BGODj8yV.js",
+      "_quality-6zEyTFZz.js",
       "resources/js/pages/panitia/PanitiaLayout.jsx",
-      "_image-CCCNZFdK.js",
+      "_image-C3Jn0Y_M.js",
       "_react-BwOH24Qy.js",
-      "_SessionSwitcher-CwA4zV_w.js",
+      "_SessionSwitcher-BdxubKp7.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/UnggahFoto.jsx": {
-    "file": "assets/UnggahFoto-BCHiWClf.js",
+    "file": "assets/UnggahFoto-CKfXPmDk.js",
     "name": "UnggahFoto",
     "src": "resources/js/pages/panitia/UnggahFoto.jsx",
     "isDynamicEntry": true,
@@ -321,26 +321,26 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_faceEngine-CLo33VXO.js",
-      "_quality-BuSOuTQE.js",
-      "_image-CCCNZFdK.js",
+      "_faceEngine-BGODj8yV.js",
+      "_quality-6zEyTFZz.js",
+      "_image-C3Jn0Y_M.js",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/publik/CekResi.jsx": {
-    "file": "assets/CekResi-BWZU1dqD.js",
+    "file": "assets/CekResi-D2cSKhzF.js",
     "name": "CekResi",
     "src": "resources/js/pages/publik/CekResi.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_PublicShell-BxhZ5Qpa.js",
+      "_PublicShell-jW_iBC4-.js",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/publik/HasilLangsung.jsx": {
-    "file": "assets/HasilLangsung-Dxq7TW_2.js",
+    "file": "assets/HasilLangsung-Cj5C7_g5.js",
     "name": "HasilLangsung",
     "src": "resources/js/pages/publik/HasilLangsung.jsx",
     "isDynamicEntry": true,
@@ -348,19 +348,19 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_PublicShell-BxhZ5Qpa.js",
+      "_PublicShell-jW_iBC4-.js",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/publik/HomePage.jsx": {
-    "file": "assets/HomePage-B7_TWTGZ.js",
+    "file": "assets/HomePage-CK-TpbcN.js",
     "name": "HomePage",
     "src": "resources/js/pages/publik/HomePage.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_PublicShell-BxhZ5Qpa.js",
+      "_PublicShell-jW_iBC4-.js",
       "resources/js/pages/publik/HasilLangsung.jsx",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"

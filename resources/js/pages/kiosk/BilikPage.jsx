@@ -21,7 +21,7 @@ const NOTICE_SECONDS = 6;
  *  - menampilkan resi, lalu kembali otomatis untuk pemilih berikutnya.
  */
 export default function BilikPage() {
-    const hasToken = !!getDeviceToken();
+    const hasToken = !!getDeviceToken('booth');
     const qc = useQueryClient();
     // view: idle (menunggu / surat suara sesuai status) | done (resi) | notice (pesan singkat)
     const [view, setView] = useState({ name: 'idle' });

@@ -21,7 +21,7 @@ import MessageStep from './MessageStep';
  * Pemilih lalu menuju bilik suara (/bilik), yang tidak tahu identitasnya.
  */
 export default function KioskPage() {
-    const hasToken = !!getDeviceToken();
+    const hasToken = !!getDeviceToken('checkin');
     const step = useKiosk((s) => s.step);
     const reset = useKiosk((s) => s.reset);
     const [engine, setEngine] = useState({ ready: false, progress: 0, label: 'Menyiapkan…', error: null });
