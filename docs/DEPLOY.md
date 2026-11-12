@@ -83,7 +83,14 @@ git add -A
 git commit -m "feat: ..."
 git push
 ```
-Di server (SSH):
+Di server (SSH) — cara singkat (aman, sudah menghapus cache lama):
+```bash
+cd ~/domains/pemilihan.contoh.id/app
+bash scripts/update-server.sh
+```
+> **Wajib menjalankan `route:cache` ulang setiap kali ada rute baru.** `git pull` saja tidak cukup: server memakai cache rute lama sehingga fitur baru memberi galat "The GET method is not supported for route …". Skrip di atas menjalankan `optimize:clear` lalu membangun ulang semua cache.
+
+Atau langkah manual:
 ```bash
 cd ~/domains/pemilihan.contoh.id/app
 php artisan down --retry=30          # JANGAN saat voting berlangsung
@@ -91,6 +98,7 @@ git pull
 composer install --no-dev --optimize-autoloader   # memasang dompdf (laporan PDF A4)
 chmod -R 775 storage bootstrap/cache    # dompdf menulis berkas sementara; artisan butuh bootstrap/cache writable
 php artisan migrate --force          # DILARANG migrate:fresh / db:seed ulang di produksi
+php artisan optimize:clear           # hapus cache rute/config/view lama
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 php artisan up
 ```
