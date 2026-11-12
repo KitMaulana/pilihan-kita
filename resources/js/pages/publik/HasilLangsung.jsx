@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDateTime, formatTime, number, percent, STATUS_LABEL } from '../../lib/format';
 import { Alert, Badge, Spinner, toast } from '../../components/ui';
-import { IconArrowRight, IconAward, IconCalendarClock, IconChartBar, IconCheckCircle, IconCopy, IconSchool, IconShieldCheck, IconUsers } from '../../components/Icons';
+import { IconArrowRight, IconAward, IconCalendarClock, IconChartBar, IconCheckCircle, IconCopy, IconPrinter, IconSchool, IconShieldCheck, IconUsers } from '../../components/Icons';
 import PublicShell from './PublicShell';
 
 // Warna batang dibedakan + diberi label angka (tidak bergantung warna saja).
@@ -213,6 +213,16 @@ function SchoolResults({ slug, sessions }) {
                                     {data.is_final ? 'Hasil Akhir Pemilihan' : 'Hitung Langsung'}
                                 </h1>
                                 <p className="mt-0.5 text-base font-bold text-white sm:text-lg">{data.election.school_name}</p>
+                                {data.is_final && (
+                                    <a
+                                        href={`/api/v1/public/results/pdf?session=${encodeURIComponent(data.election.slug)}`}
+                                        download
+                                        className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/25"
+                                    >
+                                        <IconPrinter className="size-4" />
+                                        Unduh Hasil Akhir (PDF A4)
+                                    </a>
+                                )}
                                 <p className="text-sm text-brand-100">{data.election.name}</p>
                             </div>
 

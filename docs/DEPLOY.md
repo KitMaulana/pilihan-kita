@@ -88,7 +88,8 @@ Di server (SSH):
 cd ~/domains/pemilihan.contoh.id/app
 php artisan down --retry=30          # JANGAN saat voting berlangsung
 git pull
-composer install --no-dev --optimize-autoloader
+composer install --no-dev --optimize-autoloader   # memasang dompdf (laporan PDF A4)
+chmod -R 775 storage bootstrap/cache    # dompdf menulis berkas sementara; artisan butuh bootstrap/cache writable
 php artisan migrate --force          # DILARANG migrate:fresh / db:seed ulang di produksi
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 php artisan up

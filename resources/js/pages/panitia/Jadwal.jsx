@@ -170,6 +170,7 @@ function StatusStepper({ status }) {
 
 function StatusPanel({ election }) {
     const qc = useQueryClient();
+    const [pdfBusy, setPdfBusy] = useState(null); // null | 'download' | 'open'
     const { isAdmin } = useAuth();
     const [target, setTarget] = useState(null);
     const [error, setError] = useState(null);
@@ -186,37 +187,39 @@ function StatusPanel({ election }) {
         onError: (e) => setError(errorMessage(e)),
     });
 
-    async function printReport() {
-        const { data } = await api.get('/panitia/election/report');
-        const w = window.open('', '_blank');
-        if (!w) return toast.error('Izinkan pop-up untuk mencetak laporan.');
-        const r = data.results;
-        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-        // Satu tabel per jabatan (berpasangan: satu tabel; terpisah: Ketua & Wakil), masing-masing dengan total.
-        const groups = r.positions?.length ? r.positions : [{ key: 'pair', label: '', candidates: r.candidates }];
-        const multi = groups.length > 1;
-        const tables = groups
-            .map((g) => {
-                const rows = g.candidates.map((c) => `<tr><td style="text-align:center">${c.number}</td><td>${esc(c.name)}</td><td style="text-align:right">${c.votes}</td><td style="text-align:right">${c.percent}%</td></tr>`).join('');
-                const totalVotes = g.candidates.reduce((sum, c) => sum + (c.votes || 0), 0);
-                const totalRow = `<tr class="total"><td colspan="2" style="text-align:right">Total suara${multi ? ' ' + esc(g.label) : ''}</td><td style="text-align:right">${totalVotes}</td><td style="text-align:right">${totalVotes > 0 ? '100%' : '0%'}</td></tr>`;
-                return `${multi ? `<h3 style="margin:18px 0 8px">${esc(g.label)}</h3>` : ''}<table class="hasil"><tr><th>No</th><th>${multi ? 'Calon' : 'Kandidat'}</th><th>Suara</th><th>%</th></tr>${rows}${totalRow}</table>`;
-            })
-            .join('');
-        // Logo sumber punya ruang transparan di sekelilingnya → dipangkas (sama seperti komponen BrandLogo) agar tampil besar & tajam.
-        const logoUrl = `${window.location.origin}/ciptakita-logo.png`;
-        w.document.write(`<html><head><title>Laporan ${esc(r.election.name)}</title><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:sans-serif;padding:24px;color:#0f172a}.brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c2668;padding-bottom:14px;margin-bottom:20px}.logo{position:relative;overflow:hidden;height:84px;aspect-ratio:860/312}.logo img{position:absolute;width:119.07%;height:218.59%;left:-10.7%;top:-55.77%;max-width:none}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:8px}th{background:#f1f5f9}table.hasil th:first-child,table.hasil td:first-child{width:56px}tr.total td{background:#eef2ff;font-weight:700;border-top:2px solid #0c2668}code{word-break:break-all}</style></head><body>
-<div class="brand"><div class="logo"><img src="${logoUrl}" alt="CiptaKita.id" /></div><div style="text-align:right;font-size:13px;color:#475569"><b style="font-size:15px;color:#0f172a">Pilihan Kita</b><br>${esc(r.election.school_name || '')}</div></div>
-<h2>Laporan Hasil — ${esc(r.election.name)}</h2><p>Status: ${STATUS_LABEL[r.election.status]} · Dibuat: ${formatDateTime(data.generated_at)}</p>
-${tables}
-<p>Partisipasi: siswa ${r.participation.students.voted}/${r.participation.students.total}, guru ${r.participation.teachers.voted}/${r.participation.teachers.total}, total ${r.participation.all.voted}/${r.participation.all.total}.</p>
-<p>Verifikasi ledger: <b>${data.verification.ok ? 'VALID' : 'TIDAK VALID'}</b> — ${data.verification.sealed} suara tersegel, ${data.verification.pending} menunggu.</p>
-<p>Hash terakhir: <code>${data.verification.head ?? '-'}</code></p>
-<br><br><table style="border:none"><tr><td style="border:none;text-align:center">Ketua Panitia<br><br><br><br>(..................)</td><td style="border:none;text-align:center">Kepala Sekolah<br><br><br><br>(..................)</td></tr></table>
-<script>window.print()</script></body></html>`);
-        w.document.close();
+    /** Laporan hasil PDF A4 siap cetak dari server. open=true → buka di tab baru untuk dicetak langsung. */
+    async function getReportPdf(open) {
+        setPdfBusy(open ? 'open' : 'download');
+        try {
+            const res = await api.get('/panitia/election/report/pdf', { responseType: 'blob' });
+            const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            const name = /filename="?([^";]+)"?/.exec(res.headers['content-disposition'] || '')?.[1] || 'laporan-hasil.pdf';
+            if (open && window.open(url, '_blank')) {
+                toast.success('Laporan dibuka di tab baru — tekan Ctrl+P untuk mencetak.');
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                toast.success(open ? 'Pop-up diblokir, laporan diunduh sebagai PDF.' : 'Laporan PDF diunduh.');
+            }
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        } catch (e) {
+            // Galat server pada permintaan blob datang sebagai Blob berisi JSON.
+            let msg = errorMessage(e, 'Gagal membuat laporan PDF.');
+            try {
+                const j = JSON.parse(await e.response?.data?.text?.());
+                msg = j.message || msg;
+            } catch {
+                /* pakai pesan bawaan */
+            }
+            toast.error(msg);
+        } finally {
+            setPdfBusy(null);
+        }
     }
-
     const allowed = election.allowed_transitions || [];
     const reopen = election.status === 'closed';
     const actions = [
@@ -288,9 +291,12 @@ ${tables}
                     <IconShieldCheck className="size-4" />
                     Verifikasi ledger
                 </button>
-                <button className="btn-secondary btn-sm" onClick={printReport}>
+                <button className="btn-secondary btn-sm" onClick={() => getReportPdf(false)} disabled={!!pdfBusy}>
                     <IconPrinter className="size-4" />
-                    Cetak laporan
+                    {pdfBusy === 'download' ? 'Membuat PDF…' : 'Unduh PDF (A4)'}
+                </button>
+                <button className="btn-ghost btn-sm" onClick={() => getReportPdf(true)} disabled={!!pdfBusy}>
+                    {pdfBusy === 'open' ? 'Membuka…' : 'Lihat & cetak'}
                 </button>
             </div>
 
@@ -468,7 +474,7 @@ function DeleteSessionPanel({ election }) {
             <h2 className="text-base font-extrabold text-crimson-800">Hapus sesi ini</h2>
             <p className="text-sm text-slate-600">
                 Menghapus <b>{election.label}</b> beserta <b>seluruh datanya</b>: {election.voters_count} pemilih (dan data wajah), {election.votes_count} suara, {election.candidates_count} kandidat, dan{' '}
-                {election.devices_count} perangkat. Permanen. Cetak laporan hasil terlebih dahulu bila masih diperlukan.
+                {election.devices_count} perangkat. Permanen. Unduh laporan PDF hasil terlebih dahulu bila masih diperlukan.
             </p>
             <button className="btn-danger" onClick={() => setOpen(true)}>
                 Hapus sesi &amp; semua datanya

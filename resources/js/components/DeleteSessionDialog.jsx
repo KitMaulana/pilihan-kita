@@ -63,7 +63,7 @@ export default function DeleteSessionDialog({ session, onClose, onDeleted }) {
                         </li>
                     </ul>
                     <p className="rounded-xl bg-amber-50 p-3 text-amber-900">
-                        <b>Cetak laporan hasil dulu</b> (Jadwal &amp; Status → Cetak laporan) bila hasilnya masih diperlukan. Sekolah lain tidak terpengaruh. Akun panitia sekolah ini tidak dihapus, tetapi
+                        <b>Unduh laporan PDF hasil dulu</b> (Jadwal &amp; Status → Unduh PDF) bila hasilnya masih diperlukan. Sekolah lain tidak terpengaruh. Akun panitia sekolah ini tidak dihapus, tetapi
                         dilepas dari sekolah dan terkunci sampai ditugaskan ulang.
                     </p>
                 </div>

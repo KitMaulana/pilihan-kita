@@ -6,9 +6,11 @@ use App\Http\Requests\ReceiptCheckRequest;
 use App\Models\Candidate;
 use App\Models\Election;
 use App\Models\Vote;
+use App\Services\ReportPdfService;
 use App\Services\ResultService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -37,6 +39,31 @@ class PublicController extends Controller
             ]);
 
         return response()->json(['data' => $rows])->header('Cache-Control', 'public, max-age=15');
+    }
+
+    /**
+     * PDF hasil akhir A4. HANYA untuk sesi yang sudah dipublikasikan (isinya sama dengan halaman hasil publik:
+     * angka agregat + hash ledger, tanpa data pemilih). Di-cache 60 dtk agar unduhan massal tidak membebani server.
+     */
+    public function resultsPdf(Request $request, ReportPdfService $report)
+    {
+        $slug = (string) $request->query('session', '');
+        $election = Election::where('slug', $slug)->where('status', Election::PUBLISHED)->first();
+        abort_unless($election, 404, 'Hasil akhir belum dipublikasikan.');
+
+        $made = Cache::remember('report-pdf:'.$election->id.':'.($election->published_at?->timestamp ?? 0), 60, function () use ($report, $election) {
+            $r = $report->make($election);
+
+            return ['pdf' => base64_encode($r['pdf']), 'filename' => $r['filename']];
+        });
+        $pdf = base64_decode($made['pdf']);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($request->boolean('inline') ? 'inline' : 'attachment').'; filename="'.$made['filename'].'"',
+            'Content-Length' => (string) strlen($pdf),
+            'Cache-Control' => 'public, max-age=60',
+        ]);
     }
 
     /** Hasil satu sesi: ?session={slug}. Tanpa slug → sesi yang sedang dibuka / terbaru (kompatibel tautan lama). */

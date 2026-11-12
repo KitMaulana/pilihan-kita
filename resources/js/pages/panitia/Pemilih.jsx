@@ -397,7 +397,7 @@ function AddVoter({ classes, onClose, onSaved }) {
 
 export default function Pemilih() {
     const qc = useQueryClient();
-    const [filters, setFilters] = useState({ q: '', type: '', class_name: '', face: '', status: '', page: 1 });
+    const [filters, setFilters] = useState({ q: '', type: '', class_name: '', face: '', status: '', page: 1, per_page: 50 });
     const [showImport, setShowImport] = useState(false);
     const [editing, setEditing] = useState(null);
     const [adding, setAdding] = useState(false);
@@ -405,7 +405,7 @@ export default function Pemilih() {
     const classes = useQuery({ queryKey: ['voter-classes'], queryFn: () => api.get('/panitia/voters/classes').then((r) => r.data.data) });
     const list = useQuery({
         queryKey: ['voters', filters],
-        queryFn: () => api.get('/panitia/voters', { params: { ...filters, per_page: 50 } }).then((r) => r.data),
+        queryFn: () => api.get('/panitia/voters', { params: filters }).then((r) => r.data),
         placeholderData: keepPreviousData,
     });
 
@@ -557,7 +557,23 @@ export default function Pemilih() {
                         </div>
                     )}
                     <Pagination meta={list.data?.meta} onPage={(page) => setFilters({ ...filters, page })} />
-                    {list.data?.meta && <p className="mt-2 text-xs text-slate-500">Total {number(list.data.meta.total)} pemilih sesuai filter.</p>}
+                    {list.data?.meta && (
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                            <p>
+                                Total {number(list.data.meta.total)} pemilih sesuai filter · menampilkan {number(list.data.meta.from ?? 0)}–{number(list.data.meta.to ?? 0)}
+                            </p>
+                            <label className="inline-flex items-center gap-2">
+                                Per halaman
+                                <select className="input min-h-9 w-auto py-1 text-xs" value={filters.per_page} onChange={(e) => setFilters({ ...filters, per_page: Number(e.target.value), page: 1 })} aria-label="Jumlah baris per halaman">
+                                    {[25, 50, 100, 200].map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                    )}
                 </div>
             </section>
 

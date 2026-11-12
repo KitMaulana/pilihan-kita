@@ -27,6 +27,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('public')->group(function () {
         Route::get('sessions', [PublicController::class, 'sessions'])->middleware('throttle:public');
         Route::get('results', [PublicController::class, 'results'])->middleware('throttle:public');
+        Route::get('results/pdf', [PublicController::class, 'resultsPdf'])->middleware('throttle:receipt');
         Route::post('receipt', [PublicController::class, 'receipt'])->middleware('throttle:receipt');
         Route::get('candidates/{candidate}/photo', [PublicController::class, 'candidatePhoto'])->middleware('throttle:public');
     });
@@ -86,6 +87,7 @@ Route::prefix('v1')->group(function () {
         Route::post('election/status', [ElectionController::class, 'status']);
         Route::get('election/verify', [ElectionController::class, 'verify']);
         Route::get('election/report', [ElectionController::class, 'report']);
+        Route::get('election/report/pdf', [ElectionController::class, 'reportPdf']);
 
         Route::get('logs/attempts', [LogController::class, 'attempts']);
         Route::get('logs/attempts/export', [LogController::class, 'exportAttempts']);

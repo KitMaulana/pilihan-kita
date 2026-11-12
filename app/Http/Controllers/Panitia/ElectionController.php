@@ -11,6 +11,7 @@ use App\Services\AuditService;
 use App\Services\ElectionService;
 use App\Services\FaceMatchService;
 use App\Services\LedgerService;
+use App\Services\ReportPdfService;
 use App\Services\ResultService;
 use App\Services\SessionDeletionService;
 use App\Services\VoteResetService;
@@ -176,6 +177,21 @@ class ElectionController extends Controller
         $election = Election::current() ?? abort(404, 'Belum ada pemilihan.');
 
         return response()->json($ledger->verify($election));
+    }
+
+    /** Laporan hasil sebagai PDF A4 siap cetak. Belum dipublikasikan → ditandai "HASIL SEMENTARA". */
+    public function reportPdf(Request $request, ReportPdfService $report, AuditService $audit)
+    {
+        $election = Election::current() ?? abort(404, 'Belum ada pemilihan.');
+        ['pdf' => $pdf, 'filename' => $filename] = $report->make($election);
+        $audit->log('report.pdf', $election, ['status' => $election->status]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($request->boolean('inline') ? 'inline' : 'attachment').'; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($pdf),
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     /** Laporan akhir (JSON untuk dicetak dari panel). */
