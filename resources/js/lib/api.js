@@ -24,7 +24,7 @@ export const kiosk = create();
 // Panel panitia: sesi (sekolah) yang sedang dipilih.
 api.interceptors.request.use((config) => {
     const session = getSessionId();
-    if (session && String(config.url || '').startsWith('/panitia')) config.headers['X-Session-Id'] = session;
+    if (session && String(config.url || '').startsWith('/panitia') && !config.headers['X-Session-Id']) config.headers['X-Session-Id'] = session;
     return config;
 });
 

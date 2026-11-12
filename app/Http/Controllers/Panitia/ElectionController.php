@@ -12,6 +12,7 @@ use App\Services\ElectionService;
 use App\Services\FaceMatchService;
 use App\Services\LedgerService;
 use App\Services\ResultService;
+use App\Services\SessionDeletionService;
 use App\Services\VoteResetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class ElectionController extends Controller
 
         $rows = Election::query()
             ->when($only !== null, fn ($q) => $q->whereKey($only))
-            ->withCount(['voters', 'votes'])
+            ->withCount(['voters', 'votes', 'candidates', 'devices'])
             ->orderByDesc('id')->get()
             ->map(fn (Election $e) => [
                 'id' => $e->id,
@@ -53,6 +54,10 @@ class ElectionController extends Controller
                 'is_voting_open' => $e->isVotingOpen(),
                 'voters_count' => $e->voters_count,
                 'votes_count' => $e->votes_count,
+                'candidates_count' => $e->candidates_count,
+                'devices_count' => $e->devices_count,
+                'can_delete' => SessionDeletionService::canDelete($e),
+                'delete_phrase' => SessionDeletionService::confirmPhrase($e),
                 'public_url' => '/hasil/'.$e->slug,
             ]);
 
@@ -88,29 +93,20 @@ class ElectionController extends Controller
     }
 
     /**
-     * Admin: hapus sesi yang sedang dipilih. Hanya bila BELUM ada check-in/suara (mis. salah buat).
-     * Menghapus juga kandidat & daftar pemilih sesi itu (beserta template wajahnya).
+     * Admin: hapus sesi yang sedang dipilih BESERTA SELURUH datanya (permanen). Hanya untuk sesi yang
+     * tidak sedang dibuka. Konfirmasi: ketik "HAPUS {NAMA SEKOLAH}".
      */
-    public function destroy(Request $request, AuditService $audit, FaceMatchService $matcher): JsonResponse
+    public function destroy(Request $request, SessionDeletionService $deletion): JsonResponse
     {
         $election = Election::current() ?? abort(404, 'Belum ada sesi.');
-        $request->validate(['confirm' => ['required', 'in:HAPUS SESI']], ['confirm.in' => 'Ketik "HAPUS SESI" untuk mengonfirmasi.', 'confirm.required' => 'Ketik "HAPUS SESI" untuk mengonfirmasi.']);
+        $request->validate(['confirm' => ['required', 'string']], ['confirm.required' => 'Ketik "'.SessionDeletionService::confirmPhrase($election).'" untuk mengonfirmasi.']);
 
-        if ($election->votes()->exists() || DB::table('voter_turnouts')->where('election_id', $election->id)->exists()) {
-            throw ValidationException::withMessages(['confirm' => 'Sesi yang sudah memiliki check-in atau suara tidak dapat dihapus. Gunakan Reset suara terlebih dahulu bila ini uji coba.']);
-        }
+        $result = $deletion->delete($election, (string) $request->input('confirm'));
 
-        $audit->log('election.deleted', $election, ['name' => $election->name, 'school' => $election->school_name]);
-        DB::transaction(function () use ($election) {
-            foreach ($election->candidates()->whereNotNull('photo_path')->pluck('photo_path') as $path) {
-                Storage::disk('public')->delete($path);
-            }
-            DB::table('access_attempts')->where('election_id', $election->id)->delete();
-            $election->delete(); // cascade: kandidat, pemilih (+ wajah), tiket, antrean bilik
-        });
-        $matcher->flush();
-
-        return response()->json(['message' => "Sesi {$election->label()} dihapus."]);
+        return response()->json([
+            'deleted' => $result,
+            'message' => "Sesi {$result['label']} dihapus beserta {$result['voters']} pemilih, {$result['votes']} suara, dan {$result['candidates']} kandidat.",
+        ]);
     }
 
     public function update(ElectionUpdateRequest $request, AuditService $audit, ResultService $results): ElectionResource

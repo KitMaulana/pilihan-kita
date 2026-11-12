@@ -5,6 +5,7 @@ import { formatDateTime, fromWibInput, STATUS_LABEL, toWibInput } from '../../li
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/useAuth';
 import { switchSession } from '../../components/SessionSwitcher';
+import DeleteSessionDialog from '../../components/DeleteSessionDialog';
 import { IconCalendarClock, IconCheckCircle, IconPrinter, IconShieldCheck } from '../../components/Icons';
 import { Alert, Badge, Field, Spinner, toast, TypedConfirm } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
@@ -441,48 +442,33 @@ function RetentionPanel({ election }) {
     );
 }
 
-/** Admin: hapus sesi yang salah dibuat (hanya bila belum ada check-in/suara). */
+/** Admin: hapus sesi ini beserta SELURUH datanya (hanya bila tidak sedang dibuka). */
 function DeleteSessionPanel({ election }) {
-    const qc = useQueryClient();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
-    const [error, setError] = useState(null);
-    const m = useMutation({
-        mutationFn: (confirm) => api.delete('/panitia/election', { data: { confirm } }),
-        onSuccess: ({ data }) => {
-            toast.success(data.message);
-            setOpen(false);
-            switchSession(qc, null);
-            navigate('/panitia/sesi');
-        },
-        onError: (e) => setError(errorMessage(e)),
-    });
     return (
         <section className="card space-y-3 border-crimson-200 bg-crimson-50/20">
             <h2 className="text-base font-extrabold text-crimson-800">Hapus sesi ini</h2>
             <p className="text-sm text-slate-600">
-                Menghapus sesi <b>{election.label}</b> beserta kandidat, daftar pemilih, dan template wajahnya. Hanya bisa selama belum ada check-in atau suara.
+                Menghapus <b>{election.label}</b> beserta <b>seluruh datanya</b>: {election.voters_count} pemilih (dan data wajah), {election.votes_count} suara, {election.candidates_count} kandidat, dan{' '}
+                {election.devices_count} perangkat. Permanen. Cetak laporan hasil terlebih dahulu bila masih diperlukan.
             </p>
             <button className="btn-danger" onClick={() => setOpen(true)}>
-                Hapus sesi
+                Hapus sesi &amp; semua datanya
             </button>
-            <TypedConfirm
-                open={open}
-                onClose={() => {
-                    setOpen(false);
-                    setError(null);
-                }}
-                onConfirm={(v) => m.mutate(v)}
-                title={`Hapus sesi ${election.school_name}`}
-                word="HAPUS SESI"
-                danger
-                busy={m.isPending}
-                error={error}
-            />
+            {open && (
+                <DeleteSessionDialog
+                    session={election}
+                    onClose={() => setOpen(false)}
+                    onDeleted={() => {
+                        setOpen(false);
+                        navigate('/panitia/sesi');
+                    }}
+                />
+            )}
         </section>
     );
 }
-
 export default function Jadwal() {
     const { data: election, isLoading } = useElection();
     const { isAdmin } = useAuth();
@@ -527,6 +513,11 @@ export default function Jadwal() {
             {isAdmin && <SimulationPanel election={election} />}
             {isAdmin && election && <RetentionPanel election={election} />}
             {isAdmin && election?.can_delete && <DeleteSessionPanel election={election} />}
+            {isAdmin && election && !election.can_delete && (
+                <Alert type="info" title="Sesi ini belum bisa dihapus">
+                    Pemilihan masih dibuka. Tutup pemilihan terlebih dahulu; setelah itu sesi dan seluruh datanya dapat dihapus dari sini atau dari menu Sesi Sekolah.
+                </Alert>
+            )}
         </div>
     );
 }

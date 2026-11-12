@@ -5,7 +5,8 @@ import { api, errorMessage } from '../../lib/api';
 import { number, STATUS_LABEL } from '../../lib/format';
 import { switchSession, useSessions } from '../../components/SessionSwitcher';
 import { Alert, Badge, EmptyState, Field, Spinner, toast } from '../../components/ui';
-import { IconCopy, IconExternal, IconPlus, IconSchool } from '../../components/Icons';
+import { IconCopy, IconExternal, IconPlus, IconSchool, IconTrash } from '../../components/Icons';
+import DeleteSessionDialog from '../../components/DeleteSessionDialog';
 
 const year = new Date().getFullYear();
 const statusColor = (s) => (s === 'open' ? 'green' : s === 'published' ? 'blue' : s === 'closed' ? 'red' : 'gray');
@@ -64,6 +65,7 @@ export default function Sesi() {
     const qc = useQueryClient();
     const navigate = useNavigate();
     const { data, isLoading } = useSessions();
+    const [deleting, setDeleting] = useState(null);
 
     const copy = (path) =>
         navigator.clipboard?.writeText(window.location.origin + path).then(
@@ -134,6 +136,16 @@ export default function Sesi() {
                             {s.status === 'draft' && <p className="-mt-2 text-xs text-slate-500">Halaman hasil publik baru tampil setelah sesi dibuka.</p>}
 
                             <div className="mt-auto flex gap-2">
+                                {s.can_delete ? (
+                                    <button type="button" className="btn-ghost shrink-0 text-red-700 hover:bg-red-50" onClick={() => setDeleting(s)} aria-label={`Hapus sesi ${s.school_name} beserta semua datanya`}>
+                                        <IconTrash className="size-4" />
+                                        Hapus
+                                    </button>
+                                ) : (
+                                    <span className="inline-flex shrink-0 items-center rounded-xl bg-slate-100 px-3 text-xs font-semibold text-slate-500" title="Tutup pemilihan dulu agar sesi bisa dihapus">
+                                        Dibuka
+                                    </span>
+                                )}
                                 {active ? (
                                     <span className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand-50 text-sm font-bold text-brand-800">Sedang dikelola</span>
                                 ) : (
@@ -153,6 +165,8 @@ export default function Sesi() {
                     );
                 })}
             </div>
+
+            {deleting && <DeleteSessionDialog session={deleting} onClose={() => setDeleting(null)} onDeleted={() => setDeleting(null)} />}
         </div>
     );
 }

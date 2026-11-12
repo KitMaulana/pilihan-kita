@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\BoothCredit;
 use App\Models\Election;
 use App\Services\ElectionService;
+use App\Services\SessionDeletionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -37,8 +38,11 @@ class ElectionResource extends JsonResource
             'voters_count' => $this->voters()->count(),
             // Multi-sekolah: sesi baru selalu boleh dibuat (admin) dan berjalan bersamaan.
             'can_create_new' => true,
-            // Sesi hanya boleh dihapus bila belum ada check-in / suara.
-            'can_delete' => $votes === 0 && ! \Illuminate\Support\Facades\DB::table('voter_turnouts')->where('election_id', $this->id)->exists(),
+            // Sesi boleh dihapus (beserta seluruh datanya) selama tidak sedang dibuka.
+            'can_delete' => SessionDeletionService::canDelete($this->resource),
+            'delete_phrase' => SessionDeletionService::confirmPhrase($this->resource),
+            'candidates_count' => $this->candidates()->count(),
+            'devices_count' => $this->devices()->count(),
         ];
     }
 }

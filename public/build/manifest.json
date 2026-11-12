@@ -1,6 +1,16 @@
 {
-  "_PublicShell-DmIz6DX0.js": {
-    "file": "assets/PublicShell-DmIz6DX0.js",
+  "_DeleteSessionDialog-C-teTyh_.js": {
+    "file": "assets/DeleteSessionDialog-C-teTyh_.js",
+    "name": "DeleteSessionDialog",
+    "imports": [
+      "_query-6iSOlmXk.js",
+      "resources/js/main.jsx",
+      "_format-DNH2vf54.js",
+      "_SessionSwitcher-CevwsVv7.js"
+    ]
+  },
+  "_PublicShell-nEMZdmju.js": {
+    "file": "assets/PublicShell-nEMZdmju.js",
     "name": "PublicShell",
     "imports": [
       "_query-6iSOlmXk.js",
@@ -8,8 +18,8 @@
       "_react-BwOH24Qy.js"
     ]
   },
-  "_SessionSwitcher-BbmyNvq_.js": {
-    "file": "assets/SessionSwitcher-BbmyNvq_.js",
+  "_SessionSwitcher-CevwsVv7.js": {
+    "file": "assets/SessionSwitcher-CevwsVv7.js",
     "name": "SessionSwitcher",
     "imports": [
       "_query-6iSOlmXk.js",
@@ -52,8 +62,8 @@
       "_query-6iSOlmXk.js"
     ]
   },
-  "_useCountdown-C_gnD8x_.js": {
-    "file": "assets/useCountdown-C_gnD8x_.js",
+  "_useCountdown-lJ9WAYoq.js": {
+    "file": "assets/useCountdown-lJ9WAYoq.js",
     "name": "useCountdown",
     "imports": [
       "_query-6iSOlmXk.js",
@@ -62,12 +72,12 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-CifRTZLq.css",
+    "file": "assets/app-COohVoz6.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/main.jsx": {
-    "file": "assets/main-D2r8fBqD.js",
+    "file": "assets/main-DC_N9zfB.js",
     "name": "main",
     "src": "resources/js/main.jsx",
     "isEntry": true,
@@ -97,20 +107,20 @@
     ]
   },
   "resources/js/pages/kiosk/BilikPage.jsx": {
-    "file": "assets/BilikPage-ZY2uDwQc.js",
+    "file": "assets/BilikPage-CqvQGeyE.js",
     "name": "BilikPage",
     "src": "resources/js/pages/kiosk/BilikPage.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_useCountdown-C_gnD8x_.js",
+      "_useCountdown-lJ9WAYoq.js",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/kiosk/KioskPage.jsx": {
-    "file": "assets/KioskPage-CVZh1i2K.js",
+    "file": "assets/KioskPage-1A6r2PqA.js",
     "name": "KioskPage",
     "src": "resources/js/pages/kiosk/KioskPage.jsx",
     "isDynamicEntry": true,
@@ -119,13 +129,13 @@
       "resources/js/main.jsx",
       "_faceEngine-zLxXCwNS.js",
       "_useCamera-5qsg53MI.js",
-      "_useCountdown-C_gnD8x_.js",
+      "_useCountdown-lJ9WAYoq.js",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/kiosk/PasangPerangkat.jsx": {
-    "file": "assets/PasangPerangkat-D-Q-I4fD.js",
+    "file": "assets/PasangPerangkat-FgG4THIe.js",
     "name": "PasangPerangkat",
     "src": "resources/js/pages/kiosk/PasangPerangkat.jsx",
     "isDynamicEntry": true,
@@ -136,7 +146,7 @@
     ]
   },
   "resources/js/pages/panitia/Dashboard.jsx": {
-    "file": "assets/Dashboard-Bg9YpBxq.js",
+    "file": "assets/Dashboard-sx9v4y_q.js",
     "name": "Dashboard",
     "src": "resources/js/pages/panitia/Dashboard.jsx",
     "isDynamicEntry": true,
@@ -148,7 +158,7 @@
     ]
   },
   "resources/js/pages/panitia/Jadwal.jsx": {
-    "file": "assets/Jadwal-B2Uf0Jqz.js",
+    "file": "assets/Jadwal-ynnTZns2.js",
     "name": "Jadwal",
     "src": "resources/js/pages/panitia/Jadwal.jsx",
     "isDynamicEntry": true,
@@ -156,13 +166,14 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_SessionSwitcher-BbmyNvq_.js",
+      "_SessionSwitcher-CevwsVv7.js",
+      "_DeleteSessionDialog-C-teTyh_.js",
       "resources/js/pages/panitia/PanitiaLayout.jsx",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/panitia/Kandidat.jsx": {
-    "file": "assets/Kandidat-Cubmg48Q.js",
+    "file": "assets/Kandidat-BG84uixS.js",
     "name": "Kandidat",
     "src": "resources/js/pages/panitia/Kandidat.jsx",
     "isDynamicEntry": true,
@@ -171,12 +182,12 @@
       "resources/js/main.jsx",
       "resources/js/pages/panitia/PanitiaLayout.jsx",
       "_react-BwOH24Qy.js",
-      "_SessionSwitcher-BbmyNvq_.js",
+      "_SessionSwitcher-CevwsVv7.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/Log.jsx": {
-    "file": "assets/Log-Bdx6Ij23.js",
+    "file": "assets/Log-wzXeuDUk.js",
     "name": "Log",
     "src": "resources/js/pages/panitia/Log.jsx",
     "isDynamicEntry": true,
@@ -188,7 +199,7 @@
     ]
   },
   "resources/js/pages/panitia/LoginPage.jsx": {
-    "file": "assets/LoginPage-BrS7mpbo.js",
+    "file": "assets/LoginPage-Cis2Oaiy.js",
     "name": "LoginPage",
     "src": "resources/js/pages/panitia/LoginPage.jsx",
     "isDynamicEntry": true,
@@ -199,20 +210,20 @@
     ]
   },
   "resources/js/pages/panitia/PanitiaLayout.jsx": {
-    "file": "assets/PanitiaLayout-CvFlD8cE.js",
+    "file": "assets/PanitiaLayout-DnrtUFQ2.js",
     "name": "PanitiaLayout",
     "src": "resources/js/pages/panitia/PanitiaLayout.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_SessionSwitcher-BbmyNvq_.js",
+      "_SessionSwitcher-CevwsVv7.js",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/Pemilih.jsx": {
-    "file": "assets/Pemilih-ByF3D18x.js",
+    "file": "assets/Pemilih-BwCM6iks.js",
     "name": "Pemilih",
     "src": "resources/js/pages/panitia/Pemilih.jsx",
     "isDynamicEntry": true,
@@ -224,20 +235,20 @@
     ]
   },
   "resources/js/pages/panitia/Pengguna.jsx": {
-    "file": "assets/Pengguna-BW5Ia8sG.js",
+    "file": "assets/Pengguna-oSyzPojv.js",
     "name": "Pengguna",
     "src": "resources/js/pages/panitia/Pengguna.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_SessionSwitcher-BbmyNvq_.js",
+      "_SessionSwitcher-CevwsVv7.js",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/Perangkat.jsx": {
-    "file": "assets/Perangkat-B1d15Qzr.js",
+    "file": "assets/Perangkat-N29PJz0W.js",
     "name": "Perangkat",
     "src": "resources/js/pages/panitia/Perangkat.jsx",
     "isDynamicEntry": true,
@@ -249,7 +260,7 @@
     ]
   },
   "resources/js/pages/panitia/Sesi.jsx": {
-    "file": "assets/Sesi-BPm56Y_7.js",
+    "file": "assets/Sesi-CffnUcVT.js",
     "name": "Sesi",
     "src": "resources/js/pages/panitia/Sesi.jsx",
     "isDynamicEntry": true,
@@ -257,12 +268,13 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_SessionSwitcher-BbmyNvq_.js",
+      "_SessionSwitcher-CevwsVv7.js",
+      "_DeleteSessionDialog-C-teTyh_.js",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/panitia/UjiWajah.jsx": {
-    "file": "assets/UjiWajah-H9IUskEJ.js",
+    "file": "assets/UjiWajah-DVBRIh4y.js",
     "name": "UjiWajah",
     "src": "resources/js/pages/panitia/UjiWajah.jsx",
     "isDynamicEntry": true,
@@ -274,12 +286,12 @@
       "_quality-Cp5ef_mV.js",
       "resources/js/pages/panitia/PanitiaLayout.jsx",
       "_react-BwOH24Qy.js",
-      "_SessionSwitcher-BbmyNvq_.js",
+      "_SessionSwitcher-CevwsVv7.js",
       "_format-DNH2vf54.js"
     ]
   },
   "resources/js/pages/panitia/UnggahFoto.jsx": {
-    "file": "assets/UnggahFoto-hDy_FKvS.js",
+    "file": "assets/UnggahFoto-DO18JbB5.js",
     "name": "UnggahFoto",
     "src": "resources/js/pages/panitia/UnggahFoto.jsx",
     "isDynamicEntry": true,
@@ -293,19 +305,19 @@
     ]
   },
   "resources/js/pages/publik/CekResi.jsx": {
-    "file": "assets/CekResi-B9qjy3aL.js",
+    "file": "assets/CekResi-BD8af7SH.js",
     "name": "CekResi",
     "src": "resources/js/pages/publik/CekResi.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_PublicShell-DmIz6DX0.js",
+      "_PublicShell-nEMZdmju.js",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/publik/HasilLangsung.jsx": {
-    "file": "assets/HasilLangsung-DIdCwWg8.js",
+    "file": "assets/HasilLangsung-CKI7Zwlx.js",
     "name": "HasilLangsung",
     "src": "resources/js/pages/publik/HasilLangsung.jsx",
     "isDynamicEntry": true,
@@ -313,19 +325,19 @@
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
       "_format-DNH2vf54.js",
-      "_PublicShell-DmIz6DX0.js",
+      "_PublicShell-nEMZdmju.js",
       "_react-BwOH24Qy.js"
     ]
   },
   "resources/js/pages/publik/HomePage.jsx": {
-    "file": "assets/HomePage-iNtaWcqj.js",
+    "file": "assets/HomePage-ollgOq-b.js",
     "name": "HomePage",
     "src": "resources/js/pages/publik/HomePage.jsx",
     "isDynamicEntry": true,
     "imports": [
       "_query-6iSOlmXk.js",
       "resources/js/main.jsx",
-      "_PublicShell-DmIz6DX0.js",
+      "_PublicShell-nEMZdmju.js",
       "resources/js/pages/publik/HasilLangsung.jsx",
       "_react-BwOH24Qy.js",
       "_format-DNH2vf54.js"

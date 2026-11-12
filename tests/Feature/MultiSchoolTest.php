@@ -171,7 +171,7 @@ class MultiSchoolTest extends TestCase
         $b = $this->schoolSession('SMA Salah Buat');
         $panitiaB = User::factory()->create(['election_id' => $b->id]);
         $this->actingAs($this->admin());
-        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SESI'], ['X-Session-Id' => $b->id])->assertOk();
+        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SMA SALAH BUAT'], ['X-Session-Id' => $b->id])->assertOk();
         $this->assertNull($panitiaB->fresh()->election_id);
 
         $this->actingAs($panitiaB->fresh());
@@ -195,24 +195,113 @@ class MultiSchoolTest extends TestCase
         $res->assertJsonPath('data.election_id', $a->id)->assertJsonPath('data.election_label', 'SMAN 1 Ciruas — Pemilihan Ketua OSIS');
     }
 
-    public function test_hapus_sesi_hanya_bila_belum_ada_checkin(): void
+    /** Sesi selesai (ada suara, wajah, kandidat berfoto, perangkat, log) + sekolah lain yang harus tetap utuh. */
+    private function finishedSessionWithData(string $school): array
     {
-        $a = $this->openSession('SMAN 1 Ciruas');
-        $b = $this->openSession('SMA Salah Buat');
-        Voter::factory()->create(['election_id' => $b->id]);
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $e = $this->openSession($school);
+        $cand = $e->candidates()->first();
+        $cand->update(['photo_path' => 'candidates/'.\Illuminate\Support\Str::slug($school).'.jpg']);
+        \Illuminate\Support\Facades\Storage::disk('public')->put($cand->photo_path, 'x');
+        $checkin = $this->deviceFor($e);
+        $booth = $this->deviceFor($e, KioskDevice::BOOTH);
+        $v1 = $this->faceVoter($e, 1, '0075555551');
+        $this->faceVoter($e, 2, '0075555552');
+        $this->checkInByNisn($checkin, $v1->identifier);
+        $this->postJson('/api/v1/kiosk/booth/claim', [], $booth);
+        $this->boothVote($booth, $cand->id)->assertCreated();
         $this->actingAs($this->admin());
+        $this->postJson('/api/v1/panitia/election/status', ['status' => 'closed', 'confirm' => 'TUTUP'], ['X-Session-Id' => $e->id])->assertOk();
+        // Log aktivitas yang memuat nama pemilih pada sesi ini.
+        $this->patchJson("/api/v1/panitia/voters/{$v1->id}", ['name' => "Rahasia {$school}"], ['X-Session-Id' => $e->id])->assertOk();
 
-        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'hapus'], ['X-Session-Id' => $b->id])->assertStatus(422);
-        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SESI'], ['X-Session-Id' => $b->id])->assertOk();
-        $this->assertNull(Election::find($b->id));
-        $this->assertSame(0, Voter::where('election_id', $b->id)->count());
-
-        // Sesi dengan check-in tidak bisa dihapus.
-        $this->checkInByNisn($this->deviceFor($a), Voter::factory()->create(['election_id' => $a->id])->identifier);
-        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SESI'], ['X-Session-Id' => $a->id])->assertStatus(422);
-        $this->assertNotNull(Election::find($a->id));
+        return [$e, $checkin, $booth, $cand];
     }
 
+    public function test_sesi_selesai_dihapus_beserta_seluruh_datanya_tanpa_menyentuh_sekolah_lain(): void
+    {
+        [$a] = $this->finishedSessionWithData('SMAN 1 Ciruas');
+        [$b, $checkinB, $boothB, $candB] = $this->finishedSessionWithData('SMAN 2 Serang');
+        $panitiaB = User::factory()->create(['election_id' => $b->id]);
+        $photoB = $candB->photo_path;
+        $this->actingAs($this->admin());
+
+        $res = $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'hapus sman 2 serang'], ['X-Session-Id' => $b->id])
+            ->assertOk()->assertJsonPath('deleted.votes', 1)->assertJsonPath('deleted.voters', 2)->assertJsonPath('deleted.devices', 2)->assertJsonPath('deleted.panitia', 1);
+        $this->assertStringContainsString('SMAN 2 Serang', $res->json('message'));
+
+        // Seluruh data sekolah B hilang.
+        $this->assertNull(Election::find($b->id));
+        foreach (['voters', 'candidates', 'votes', 'voter_turnouts', 'booth_credits', 'ballot_tickets', 'access_attempts', 'kiosk_devices', 'activity_logs'] as $table) {
+            $this->assertSame(0, \Illuminate\Support\Facades\DB::table($table)->where('election_id', $b->id)->count(), "{$table} masih berisi data sekolah yang dihapus");
+        }
+        $this->assertSame(0, FaceTemplate::whereNotIn('voter_id', Voter::select('id'))->count(), 'template wajah yatim tersisa');
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing($photoB);
+        $this->assertNull($panitiaB->fresh()->election_id, 'akun panitia dipertahankan tetapi dilepas dari sekolah');
+        $logs = \Illuminate\Support\Facades\DB::table('activity_logs')->get()->toJson();
+        $this->assertStringNotContainsString('Rahasia SMAN 2 Serang', $logs, 'nama pemilih sekolah yang dihapus tersisa di log');
+        $this->assertStringContainsString('Rahasia SMAN 1 Ciruas', $logs, 'log sekolah lain tidak boleh ikut terhapus');
+
+        // Hasil publik & tablet sekolah B langsung tidak berlaku.
+        $this->getJson("/api/v1/public/results?session={$b->slug}")->assertNotFound();
+        $this->postJson('/api/v1/kiosk/booth/claim', [], $boothB)->assertUnauthorized();
+        $this->postJson('/api/v1/kiosk/identify', $this->identifyPayload($this->vec(2)), $checkinB)->assertUnauthorized();
+
+        // Sekolah A tetap utuh dan ledger-nya valid.
+        $this->assertNotNull(Election::find($a->id));
+        $this->assertSame(2, Voter::where('election_id', $a->id)->count());
+        $this->assertSame(1, Vote::where('election_id', $a->id)->count());
+        $this->assertSame(2, FaceTemplate::count());
+        $this->assertTrue(app(LedgerService::class)->verify($a->fresh())['ok']);
+        $this->getJson("/api/v1/public/results?session={$a->slug}")->assertOk()->assertJsonPath('candidates.0.votes', 1);
+
+        // Catatan penghapusan tetap ada, tidak terikat sesi, tanpa data pemilih.
+        $log = \Illuminate\Support\Facades\DB::table('activity_logs')->where('action', 'election.deleted')->first();
+        $this->assertNotNull($log);
+        $this->assertNull($log->election_id);
+        $this->assertStringContainsString('SMAN 2 Serang', $log->details);
+    }
+
+    public function test_hapus_sesi_butuh_nama_sekolah_dan_menolak_sesi_yang_masih_dibuka(): void
+    {
+        $open = $this->openSession('SMAN 1 Ciruas');
+        $this->actingAs($this->admin());
+
+        // Masih dibuka → ditolak walau konfirmasinya benar.
+        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SMAN 1 CIRUAS'], ['X-Session-Id' => $open->id])
+            ->assertStatus(422)->assertJsonValidationErrors('confirm');
+        $this->assertNotNull(Election::find($open->id));
+
+        $this->postJson('/api/v1/panitia/election/status', ['status' => 'closed', 'confirm' => 'TUTUP'], ['X-Session-Id' => $open->id])->assertOk();
+        // Kata umum / nama sekolah lain / kosong → ditolak dengan frasa yang diharapkan.
+        foreach (['HAPUS SESI', 'HAPUS SMAN 2 SERANG', 'hapus', ''] as $wrong) {
+            $r = $this->deleteJson('/api/v1/panitia/election', ['confirm' => $wrong], ['X-Session-Id' => $open->id]);
+            $r->assertStatus(422);
+        }
+        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SESI'], ['X-Session-Id' => $open->id])
+            ->assertJsonPath('errors.confirm.0', 'Ketik "HAPUS SMAN 1 CIRUAS" untuk mengonfirmasi.');
+        $this->assertNotNull(Election::find($open->id));
+
+        // Sesi draf pun bisa dihapus (salah buat), dengan frasa yang sama.
+        $draft = $this->schoolSession('SMA Salah Buat');
+        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SMA SALAH BUAT'], ['X-Session-Id' => $draft->id])->assertOk();
+        $this->assertNull(Election::find($draft->id));
+    }
+
+    public function test_panitia_tidak_bisa_menghapus_sesi_dan_ringkasan_hapus_tersedia_untuk_admin(): void
+    {
+        $a = $this->openSession('SMAN 1 Ciruas');
+        $this->postJson('/api/v1/panitia/election/status', ['status' => 'closed', 'confirm' => 'TUTUP']);
+        $this->actingAs($this->panitia($a));
+        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SMAN 1 CIRUAS'])->assertForbidden();
+        $this->assertNotNull(Election::find($a->id));
+
+        $this->actingAs($this->admin());
+        $row = collect($this->getJson('/api/v1/panitia/sessions')->json('data'))->firstWhere('id', $a->id);
+        $this->assertSame('HAPUS SMAN 1 CIRUAS', $row['delete_phrase']);
+        $this->assertArrayHasKey('candidates_count', $row);
+        $this->assertArrayHasKey('devices_count', $row);
+    }
     public function test_tutup_otomatis_semua_sesi_yang_lewat_jam(): void
     {
         $a = $this->openSession('SMAN 1 Ciruas');
