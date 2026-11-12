@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, errorMessage } from '../../lib/api';
 import { number } from '../../lib/format';
 import { useAuth } from '../../features/auth/useAuth';
-import { IconUpload, IconUsers } from '../../components/Icons';
+import { IconDownload, IconUpload, IconUsers } from '../../components/Icons';
 import { Alert, Badge, EmptyState, Field, Modal, Pagination, Spinner, toast } from '../../components/ui';
 
 function ImportPanel({ onDone }) {
@@ -395,12 +395,109 @@ function AddVoter({ classes, onClose, onSaved }) {
     );
 }
 
+const EXPORT_FORMATS = [
+    { value: 'student', label: 'Siswa — format impor', hint: 'NISN, nama, kelas, tanggal lahir. Bisa langsung diimpor kembali.' },
+    { value: 'teacher', label: 'Guru — format impor', hint: 'NIP, nama, tanggal lahir, kode. Bisa langsung diimpor kembali.' },
+    { value: 'full', label: 'Semua pemilih — laporan lengkap', hint: 'Siswa & guru beserta status aktif, wajah terdaftar, dan sudah check-in.' },
+];
+
+/** Unduh daftar pemilih sebagai CSV (mengikuti filter yang sedang dipakai). Tanpa data wajah. */
+function ExportDialog({ filters, onClose }) {
+    const [format, setFormat] = useState('student');
+    const [delimiter, setDelimiter] = useState('semicolon');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState(null);
+    const active = ['q', 'class_name', 'face', 'status'].filter((k) => filters[k]);
+
+    const download = async () => {
+        setBusy(true);
+        setError(null);
+        try {
+            const params = { format, delimiter };
+            active.forEach((k) => (params[k] = filters[k]));
+            const res = await api.get('/panitia/voters/export', { params, responseType: 'blob', timeout: 60000 });
+            const match = /filename="?([^";]+)"?/i.exec(res.headers['content-disposition'] || '');
+            const url = URL.createObjectURL(res.data);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = match ? match[1] : 'pemilih.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            toast.success('Berkas CSV diunduh.');
+            onClose();
+        } catch (e) {
+            // Galat dari server berupa Blob; baca pesannya.
+            let msg = errorMessage(e);
+            if (e.response?.data instanceof Blob) {
+                try {
+                    const j = JSON.parse(await e.response.data.text());
+                    msg = j.message || msg;
+                } catch {
+                    /* abaikan */
+                }
+            }
+            setError(msg);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <Modal
+            open
+            onClose={busy ? undefined : onClose}
+            title="Unduh data pemilih (CSV)"
+            footer={
+                <>
+                    <button className="btn-secondary" onClick={onClose} disabled={busy}>
+                        Batal
+                    </button>
+                    <button className="btn-primary" onClick={download} disabled={busy}>
+                        {busy ? <Spinner /> : <IconDownload className="size-4" />}
+                        Unduh CSV
+                    </button>
+                </>
+            }
+        >
+            <div className="space-y-4">
+                {error && <Alert type="danger">{error}</Alert>}
+                <fieldset className="space-y-2">
+                    <legend className="mb-1 text-sm font-semibold text-slate-700">Isi berkas</legend>
+                    {EXPORT_FORMATS.map((f) => (
+                        <label key={f.value} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border p-3 ${format === f.value ? 'border-brand-500 bg-brand-50' : 'border-slate-200'}`}>
+                            <input type="radio" name="export-format" className="mt-1" checked={format === f.value} onChange={() => setFormat(f.value)} />
+                            <span>
+                                <span className="block text-sm font-semibold text-slate-900">{f.label}</span>
+                                <span className="block text-xs text-slate-500">{f.hint}</span>
+                            </span>
+                        </label>
+                    ))}
+                </fieldset>
+                <Field label="Pemisah kolom" hint="Excel versi Indonesia umumnya memakai titik koma. Impor mengenali keduanya.">
+                    {(id) => (
+                        <select id={id} className="input" value={delimiter} onChange={(e) => setDelimiter(e.target.value)}>
+                            <option value="semicolon">Titik koma (;) — Excel Indonesia</option>
+                            <option value="comma">Koma (,) — Google Sheets / umum</option>
+                        </select>
+                    )}
+                </Field>
+                <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                    {active.length > 0 ? 'Filter yang sedang aktif (pencarian, kelas, status) ikut diterapkan pada unduhan ini.' : 'Seluruh pemilih sekolah ini akan diunduh.'} Data wajah tidak pernah disertakan. Berkas memuat NISN/NIP dan tanggal lahir, jadi simpan dengan aman. Pengunduhan tercatat di log aktivitas.
+                </p>
+            </div>
+        </Modal>
+    );
+}
+
 export default function Pemilih() {
     const qc = useQueryClient();
     const [filters, setFilters] = useState({ q: '', type: '', class_name: '', face: '', status: '', page: 1, per_page: 50 });
     const [showImport, setShowImport] = useState(false);
     const [editing, setEditing] = useState(null);
     const [adding, setAdding] = useState(false);
+    const [exporting, setExporting] = useState(false);
 
     const classes = useQuery({ queryKey: ['voter-classes'], queryFn: () => api.get('/panitia/voters/classes').then((r) => r.data.data) });
     const list = useQuery({
@@ -436,8 +533,14 @@ export default function Pemilih() {
                         <IconUpload className="size-4" />
                         {showImport ? 'Tutup impor' : 'Impor CSV (massal)'}
                     </button>
+                    <button className="btn-secondary" onClick={() => setExporting(true)}>
+                        <IconDownload className="size-4" />
+                        Unduh CSV
+                    </button>
                 </div>
             </div>
+
+            {exporting && <ExportDialog filters={filters} onClose={() => setExporting(false)} />}
 
             {adding && (
                 <AddVoter

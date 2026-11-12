@@ -62,6 +62,7 @@ Route::prefix('v1')->group(function () {
         Route::get('voters', [VoterController::class, 'index']);
         Route::get('voters/classes', [VoterController::class, 'classes']);
         Route::get('voters/template/{type}', [VoterController::class, 'template']);
+        Route::get('voters/export', [VoterController::class, 'export']);
         Route::post('voters/import/preview', [VoterController::class, 'preview']);
         Route::post('voters/import/commit', [VoterController::class, 'commit']);
         Route::post('voters', [VoterController::class, 'store']);

@@ -11,6 +11,7 @@ use App\Models\Election;
 use App\Models\Voter;
 use App\Services\AuditService;
 use App\Services\FaceMatchService;
+use App\Services\VoterExportService;
 use App\Services\VoterImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,18 +20,29 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class VoterController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        $voters = $this->filtered($request)
+            ->with('faceTemplate')
+            ->orderBy('type')->orderBy('class_name')->orderBy('name')
+            ->paginate(min(200, max(10, (int) $request->query('per_page', 50))));
+
+        return VoterResource::collection($voters);
+    }
+
+    /** Pemilih sesi (sekolah) aktif dengan filter yang sama untuk daftar dan ekspor. */
+    private function filtered(Request $request, bool $ignoreType = false): \Illuminate\Database\Eloquent\Builder
+    {
         $election = Election::current();
 
-        $voters = Voter::query()
-            ->with('faceTemplate')
+        return Voter::query()
             ->where('election_id', $election?->id ?? 0) // hanya pemilih sesi (sekolah) aktif
             ->search($request->query('q'))
-            ->when($request->query('type'), fn ($q, $t) => $q->where('type', $t))
+            ->when(! $ignoreType && $request->query('type'), fn ($q, $t) => $q->where('type', $t))
             ->when($request->query('class_name'), fn ($q, $c) => $q->where('class_name', $c))
             ->when($request->query('face') === 'yes', fn ($q) => $q->has('faceTemplate'))
             ->when($request->query('face') === 'no', fn ($q) => $q->doesntHave('faceTemplate'))
@@ -38,11 +50,40 @@ class VoterController extends Controller
             ->when($request->query('status') === 'voted', fn ($q) => $q->where('has_voted', true))
             ->when($request->query('status') === 'not_voted', fn ($q) => $q->where('has_voted', false))
             ->when($request->query('status') === 'locked', fn ($q) => $q->whereNotNull('locked_at'))
-            ->when($request->query('status') === 'inactive', fn ($q) => $q->where('is_active', false))
-            ->orderBy('type')->orderBy('class_name')->orderBy('name')
-            ->paginate(min(200, max(10, (int) $request->query('per_page', 50))));
+            ->when($request->query('status') === 'inactive', fn ($q) => $q->where('is_active', false));
+    }
 
-        return VoterResource::collection($voters);
+    /**
+     * Unduh daftar pemilih (CSV). Format: student|teacher (sama dengan templat impor) atau full (laporan lengkap).
+     * Mengikuti filter yang sedang dipakai (q, class_name, face, status). Hanya sekolah yang sedang dipilih.
+     */
+    public function export(Request $request, VoterExportService $export, AuditService $audit): StreamedResponse
+    {
+        $request->validate([
+            'format' => ['required', 'in:'.implode(',', VoterExportService::FORMATS)],
+            'delimiter' => ['sometimes', 'in:comma,semicolon'],
+        ]);
+        $election = $this->election();
+        $delimiter = $request->query('delimiter') === 'comma' ? ',' : ';';
+
+        // Ekspor siswa/guru tidak boleh diubah oleh filter "type" dari daftar.
+        $query = $this->filtered($request, ignoreType: true);
+        $result = $export->build($query, (string) $request->query('format'), (string) $election->school_name);
+
+        $audit->log('voters.exported', $election, [
+            'format' => $request->query('format'),
+            'rows' => $result['count'],
+            'filters' => array_filter($request->only(['q', 'class_name', 'face', 'status'])),
+        ]);
+
+        return response()->streamDownload(function () use ($export, $result, $delimiter) {
+            $out = fopen('php://output', 'w');
+            $export->write($out, $result['rows'], $delimiter);
+            fclose($out);
+        }, $result['filename'], [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     public function classes(): JsonResponse
