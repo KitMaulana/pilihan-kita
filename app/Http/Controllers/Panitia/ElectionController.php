@@ -52,6 +52,7 @@ class ElectionController extends Controller
                 'status' => $e->status,
                 'is_simulation' => $e->is_simulation,
                 'is_voting_open' => $e->isVotingOpen(),
+                'ballot_mode' => $e->ballotMode(),
                 'voters_count' => $e->voters_count,
                 'votes_count' => $e->votes_count,
                 'candidates_count' => $e->candidates_count,
@@ -74,6 +75,7 @@ class ElectionController extends Controller
         $data = $request->validate([
             'school_name' => ['required', 'string', 'max:150'],
             'name' => ['required', 'string', 'max:150'],
+            'ballot_mode' => ['sometimes', 'in:pair,separate'],
         ], [
             'school_name.required' => 'Nama sekolah wajib diisi.',
             'name.required' => 'Nama pemilihan wajib diisi.',
@@ -84,7 +86,7 @@ class ElectionController extends Controller
             'name' => trim($data['name']),
             'slug' => Election::makeSlug($data['school_name']),
             'status' => Election::DRAFT,
-            'settings' => Election::DEFAULT_SETTINGS,
+            'settings' => ['ballot_mode' => $data['ballot_mode'] ?? Election::MODE_PAIR] + Election::DEFAULT_SETTINGS,
         ]);
         Election::useCurrent($election);
         $audit->log('election.created', $election, ['name' => $election->name, 'school' => $election->school_name]);
@@ -127,6 +129,7 @@ class ElectionController extends Controller
             if ($election->status !== Election::DRAFT && ! $request->user()->isAdmin()) {
                 throw ValidationException::withMessages(['settings' => 'Pengaturan hanya bisa diubah admin setelah pemilihan dibuka.']);
             }
+            $this->guardBallotModeChange($election, $data['settings']['ballot_mode'] ?? null);
             $data['settings'] = array_merge($election->allSettings(), $data['settings']);
         }
 
@@ -185,5 +188,22 @@ class ElectionController extends Controller
             'verification' => $ledger->verify($election),
             'generated_at' => now()->toIso8601String(),
         ]);
+    }
+    /**
+     * Skema surat suara hanya boleh diganti saat DRAF (siapa pun perannya), dan hanya bila kandidat yang ada
+     * cocok dengan skema baru — agar surat suara di bilik tidak pernah berisi jabatan yang salah.
+     */
+    private function guardBallotModeChange(Election $election, ?string $mode): void
+    {
+        if ($mode === null || $mode === $election->ballotMode()) {
+            return;
+        }
+        if ($election->status !== Election::DRAFT) {
+            throw ValidationException::withMessages(['settings.ballot_mode' => 'Skema pemilihan hanya bisa diubah saat pemilihan masih draf.']);
+        }
+        $mismatch = $election->candidates()->whereNotIn('position', Election::positionsFor($mode))->count();
+        if ($mismatch > 0) {
+            throw ValidationException::withMessages(['settings.ballot_mode' => "Hapus {$mismatch} kandidat yang terdaftar dengan skema lama terlebih dahulu (menu Kandidat), lalu ubah skema."]);
+        }
     }
 }

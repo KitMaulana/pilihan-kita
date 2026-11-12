@@ -26,8 +26,16 @@ class VoteService
 
     public function __construct(private LedgerService $ledger) {}
 
-    /** @return array{receipt_code: string, replayed: bool} */
-    public function cast(Election $election, KioskDevice $device, int $candidateId, string $idempotencyKey): array
+    /**
+     * Satu SURAT SUARA = satu hak masuk bilik = satu kode resi.
+     * Skema berpasangan: $choices = ['pair' => candidateId].
+     * Skema terpisah  : $choices = ['ketua' => candidateId, 'wakil' => candidateId] — keduanya wajib.
+     * Semua pilihan disimpan dalam satu transaksi (tidak mungkin tercatat sebagian).
+     *
+     * @param  array<string, int|string>  $choices
+     * @return array{receipt_code: string, replayed: bool}
+     */
+    public function cast(Election $election, KioskDevice $device, array $choices, string $idempotencyKey): array
     {
         $idemKey = 'vote-idem:'.hash('sha256', $device->id.'|'.$idempotencyKey);
 
@@ -35,10 +43,7 @@ class VoteService
             return ['receipt_code' => $cached, 'replayed' => true];
         }
 
-        $candidate = Candidate::where('election_id', $election->id)->where('is_active', true)->find($candidateId);
-        if (! $candidate) {
-            throw new KioskException('invalid_candidate', 'Kandidat tidak valid. Silakan pilih ulang.');
-        }
+        $candidates = $this->resolveChoices($election, $choices);
 
         // Kunci idempotensi singkat: dua kiriman paralel dengan key sama tidak memakai dua hak masuk.
         $lock = Cache::lock($idemKey.':lock', 10);
@@ -54,7 +59,7 @@ class VoteService
             $receipt = null;
             // Ulangi bila hak masuk yang dikunci sudah dipakai bilik lain di transaksi paralel.
             for ($try = 0; $try < 3 && ! $receipt; $try++) {
-                $receipt = DB::transaction(function () use ($election, $candidate, $device) {
+                $receipt = DB::transaction(function () use ($election, $candidates, $device) {
                     // Utamakan hak masuk yang DIPESAN bilik ini; bila pesanannya sudah dilepas (bilik sempat
                     // tidak terlihat), ambil yang masih antre. Hak masuk yang dipesan bilik lain tidak disentuh.
                     $credit = BoothCredit::heldBy($election->id, $device->id)->lockForUpdate()->first()
@@ -66,7 +71,7 @@ class VoteService
                         return null; // sudah dipakai bilik lain
                     }
 
-                    return $this->insertVote($election, $candidate)->receipt_code;
+                    return $this->insertBallot($election, $candidates);
                 }, 3);
             }
 
@@ -89,18 +94,63 @@ class VoteService
         return ['receipt_code' => $receipt, 'replayed' => false];
     }
 
-    private function insertVote(Election $election, Candidate $candidate): Vote
+    /**
+     * Pilihan harus lengkap untuk SETIAP jabatan pada skema sesi, dan tiap kandidat harus aktif,
+     * milik sesi ini, dan berjabatan sesuai (calon wakil tidak bisa dipilih sebagai ketua).
+     *
+     * @return array<string, Candidate> jabatan => kandidat, sesuai urutan jabatan sesi
+     */
+    private function resolveChoices(Election $election, array $choices): array
+    {
+        $resolved = [];
+        foreach ($election->positions() as $position) {
+            $id = $choices[$position] ?? null;
+            $label = Election::POSITION_LABELS[$position];
+            if (! is_numeric($id)) {
+                throw new KioskException('incomplete_ballot', $position === 'pair'
+                    ? 'Pilih salah satu kandidat terlebih dahulu.'
+                    : "Pilihan {$label} belum diisi. Silakan pilih ulang.");
+            }
+            $candidate = Candidate::where('election_id', $election->id)->where('is_active', true)
+                ->where('position', $position)->find((int) $id);
+            if (! $candidate) {
+                throw new KioskException('invalid_candidate', $position === 'pair'
+                    ? 'Kandidat tidak valid. Silakan pilih ulang.'
+                    : "Calon {$label} tidak valid. Silakan pilih ulang.");
+            }
+            $resolved[$position] = $candidate;
+        }
+        $extra = array_diff(array_keys($choices), $election->positions());
+        if ($extra !== []) {
+            throw new KioskException('invalid_candidate', 'Surat suara tidak sesuai skema pemilihan. Muat ulang halaman bilik.');
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Simpan satu surat suara: satu baris per jabatan, KODE RESI SAMA, tanpa identitas & tanpa waktu.
+     *
+     * @param  array<string, Candidate>  $candidates
+     */
+    private function insertBallot(Election $election, array $candidates): string
     {
         for ($i = 0; $i < 5; $i++) {
             $code = $this->receiptCode();
-            if (! Vote::where('receipt_code', $code)->exists()) {
-                return Vote::create([
+            if (Vote::where('receipt_code', $code)->exists()) {
+                continue;
+            }
+            foreach ($candidates as $position => $candidate) {
+                Vote::create([
                     'election_id' => $election->id,
                     'candidate_id' => $candidate->id,
+                    'position' => $position,
                     'receipt_code' => $code,
                     'nonce' => bin2hex(random_bytes(16)),
                 ]);
             }
+
+            return $code;
         }
         throw new \RuntimeException('Gagal membuat kode resi unik.');
     }

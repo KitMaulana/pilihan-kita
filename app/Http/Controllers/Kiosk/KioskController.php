@@ -47,8 +47,15 @@ class KioskController extends Controller
     {
         $election = $this->election($request);
 
+        $positions = $election->positions();
+
         return response()->json([
-            'data' => CandidateResource::collection($election->candidates()->where('is_active', true)->get()),
+            'data' => CandidateResource::collection(
+                $election->candidates()->where('is_active', true)->whereIn('position', $positions)->orderBy('number')->get()
+            ),
+            'ballot_mode' => $election->ballotMode(),
+            // Urutan langkah di bilik (berpasangan: 1 langkah; terpisah: ketua lalu wakil).
+            'positions' => array_map(fn ($p) => ['key' => $p, 'label' => Election::POSITION_LABELS[$p]], $positions),
         ]);
     }
 
@@ -143,12 +150,14 @@ class KioskController extends Controller
     }
     public function vote(VoteRequest $request, VoteService $votes): JsonResponse
     {
-        $result = $votes->cast(
-            $this->election($request),
-            $this->device($request),
-            (int) $request->input('candidate_id'),
-            $request->input('idempotency_key'),
-        );
+        $election = $this->election($request);
+        // Berpasangan: candidate_id (kompatibel) atau choices.pair. Terpisah: choices.ketua & choices.wakil.
+        $choices = (array) $request->input('choices', []);
+        if ($request->filled('candidate_id') && $election->ballotMode() === Election::MODE_PAIR) {
+            $choices = ['pair' => $request->input('candidate_id')];
+        }
+
+        $result = $votes->cast($election, $this->device($request), $choices, $request->input('idempotency_key'));
 
         return response()->json([
             'receipt_code' => $result['receipt_code'],

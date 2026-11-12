@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Candidate extends Model
 {
     protected $fillable = [
-        'election_id', 'number', 'name', 'class_name', 'photo_path', 'vision', 'mission', 'is_active',
+        'election_id', 'position', 'number', 'name', 'class_name', 'photo_path', 'vision', 'mission', 'is_active',
     ];
 
     protected function casts(): array

@@ -145,7 +145,15 @@ export default function Dashboard() {
 
                     {r ? (
                         <ul className="space-y-4">
-                            {r.candidates.map((c, idx) => (
+                            {(r.positions?.length ? r.positions : [{ key: 'pair', label: '', candidates: r.candidates, votes_counted: r.votes_counted }]).map((group) => (
+                                <div key={group.key} className="space-y-3">
+                                    {(r.positions?.length || 1) > 1 && (
+                                        <p className="flex justify-between text-sm font-extrabold text-brand-900">
+                                            <span>{group.label}</span>
+                                            <span className="font-semibold text-slate-500 tabular-nums">{number(group.votes_counted)} suara</span>
+                                        </p>
+                                    )}
+                            {group.candidates.map((c, idx) => (
                                 <li key={c.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
                                     <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
                                         <span className="font-bold text-slate-900">
@@ -160,6 +168,8 @@ export default function Dashboard() {
                                         <ProgressBar value={c.percent} color={BAR_COLORS[idx % BAR_COLORS.length]} label={c.name} />
                                     </div>
                                 </li>
+                            ))}
+                                </div>
                             ))}
                         </ul>
                     ) : (

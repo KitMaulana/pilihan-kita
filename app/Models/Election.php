@@ -28,6 +28,22 @@ class Election extends Model
         'ticket_vote_ttl' => 180,       // (tidak dipakai lagi sejak alur check-in → bilik)
         'seal_batch_size' => 10,        // suara disegel ke ledger & diacak urutannya per kelompok
         'require_liveness' => true,
+        'ballot_mode' => 'pair',        // pair = ketua & wakil satu pasangan; separate = dipilih terpisah
+    ];
+
+    /** Ketua & wakil satu pasangan (satu pilihan). */
+    public const MODE_PAIR = 'pair';
+
+    /** Ketua & wakil dipilih terpisah (dua pilihan dalam satu surat suara). */
+    public const MODE_SEPARATE = 'separate';
+
+    public const MODES = [self::MODE_PAIR, self::MODE_SEPARATE];
+
+    /** Label jabatan pada surat suara, hasil, dan laporan. */
+    public const POSITION_LABELS = [
+        'pair' => 'Ketua & Wakil Ketua OSIS',
+        'ketua' => 'Ketua OSIS',
+        'wakil' => 'Wakil Ketua OSIS',
     ];
 
     protected $fillable = [
@@ -131,6 +147,22 @@ class Election extends Model
     public function setting(string $key): mixed
     {
         return ($this->settings ?? [])[$key] ?? self::DEFAULT_SETTINGS[$key] ?? null;
+    }
+
+    public function ballotMode(): string
+    {
+        return $this->setting('ballot_mode') === self::MODE_SEPARATE ? self::MODE_SEPARATE : self::MODE_PAIR;
+    }
+
+    /** Jabatan yang dipilih pada surat suara sesi ini, berurutan sesuai langkah di bilik. */
+    public function positions(): array
+    {
+        return self::positionsFor($this->ballotMode());
+    }
+
+    public static function positionsFor(string $mode): array
+    {
+        return $mode === self::MODE_SEPARATE ? ['ketua', 'wakil'] : ['pair'];
     }
 
     public function allSettings(): array

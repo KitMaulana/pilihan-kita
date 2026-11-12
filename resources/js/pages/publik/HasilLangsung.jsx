@@ -242,7 +242,7 @@ function SchoolResults({ slug, sessions }) {
                         <div className="card p-4">
                             <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">Kandidat</p>
                             <p className="mt-1.5 text-2xl font-extrabold text-slate-900 tabular-nums sm:text-3xl">{number(data.candidates.length)}</p>
-                            <p className="mt-1 text-xs text-slate-500">Pasangan calon aktif</p>
+                            <p className="mt-1 text-xs text-slate-500">{data.ballot_mode === 'separate' ? 'Calon ketua & wakil' : 'Pasangan calon aktif'}</p>
                         </div>
                         <div className="card p-4">
                             <p className="text-xs font-bold tracking-wider text-slate-500 uppercase">
@@ -268,9 +268,21 @@ function SchoolResults({ slug, sessions }) {
                                 <span className="text-xs font-medium text-slate-500">Seluruh suara sah</span>
                             </div>
 
+                            <div className="space-y-7">
+                            {(data.positions?.length ? data.positions : [{ key: 'pair', label: '', candidates: data.candidates, votes_counted: data.votes_counted }]).map((group) => {
+                                const groupTop = group.candidates.reduce((m, c) => Math.max(m, c.votes || 0), 0);
+                                const multi = (data.positions?.length || 1) > 1;
+                                return (
+                            <div key={group.key}>
+                            {multi && (
+                                <div className="mb-3 flex items-baseline justify-between gap-2">
+                                    <h3 className="text-base font-extrabold text-brand-900">{group.label}</h3>
+                                    <span className="text-xs font-semibold text-slate-500 tabular-nums">{number(group.votes_counted)} suara</span>
+                                </div>
+                            )}
                             <ul className="space-y-4">
-                                {data.candidates.map((c, i) => {
-                                    const leading = topVotes > 0 && c.votes === topVotes;
+                                {group.candidates.map((c, i) => {
+                                    const leading = groupTop > 0 && c.votes === groupTop;
                                     return (
                                         <li
                                             key={c.id}
@@ -326,9 +338,13 @@ function SchoolResults({ slug, sessions }) {
                                     );
                                 })}
                             </ul>
+                            </div>
+                                );
+                            })}
+                            </div>
 
                             <p className="mt-5 text-xs text-slate-500">
-                                {number(data.votes_counted)} suara terhitung.
+                                {number(data.votes_counted)} surat suara terhitung{data.ballot_mode === 'separate' ? ' (setiap surat suara berisi pilihan ketua dan wakil)' : ''}.
                                 {!data.is_final && data.booth_waiting > 0 && (
                                     <> {number(data.booth_waiting)} pemilih sudah check-in dan sedang menuju bilik suara.</>
                                 )}

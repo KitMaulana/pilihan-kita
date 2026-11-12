@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/useAuth';
 import { switchSession } from '../../components/SessionSwitcher';
 import DeleteSessionDialog from '../../components/DeleteSessionDialog';
+import BallotModePicker from '../../components/BallotModePicker';
 import { IconCalendarClock, IconCheckCircle, IconPrinter, IconShieldCheck } from '../../components/Icons';
 import { Alert, Badge, Field, Spinner, toast, TypedConfirm } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
@@ -83,6 +84,14 @@ function SettingsForm({ election }) {
                     {(id) => <input id={id} type="datetime-local" className="input" value={form.closes_at} disabled={locked} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />}
                 </Field>
             </div>
+
+            <fieldset className="border-t border-slate-100 pt-5" disabled={election.status !== 'draft'}>
+                <legend className="mb-2 text-sm font-bold text-slate-800">Skema pemilihan {election.status !== 'draft' && '(terkunci setelah dibuka)'}</legend>
+                <BallotModePicker value={s.ballot_mode === 'separate' ? 'separate' : 'pair'} onChange={(v) => setForm({ ...form, settings: { ...s, ballot_mode: v } })} />
+                {election.status === 'draft' && (
+                    <p className="mt-2 text-xs text-slate-500">Mengganti skema hanya bisa bila belum ada kandidat dengan skema lama. Klik Simpan untuk menerapkan.</p>
+                )}
+            </fieldset>
 
             <fieldset className="grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-3" disabled={settingsLocked}>
                 <legend className="mb-2 text-sm font-bold text-slate-800">Aturan pengenalan wajah &amp; ledger {settingsLocked && '(terkunci)'}</legend>
@@ -183,15 +192,23 @@ function StatusPanel({ election }) {
         if (!w) return toast.error('Izinkan pop-up untuk mencetak laporan.');
         const r = data.results;
         const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-        const rows = r.candidates.map((c) => `<tr><td style="text-align:center">${c.number}</td><td>${esc(c.name)}</td><td style="text-align:right">${c.votes}</td><td style="text-align:right">${c.percent}%</td></tr>`).join('');
-        const totalVotes = r.candidates.reduce((sum, c) => sum + (c.votes || 0), 0);
-        const totalRow = `<tr class="total"><td colspan="2" style="text-align:right">Total suara</td><td style="text-align:right">${totalVotes}</td><td style="text-align:right">${totalVotes > 0 ? '100%' : '0%'}</td></tr>`;
+        // Satu tabel per jabatan (berpasangan: satu tabel; terpisah: Ketua & Wakil), masing-masing dengan total.
+        const groups = r.positions?.length ? r.positions : [{ key: 'pair', label: '', candidates: r.candidates }];
+        const multi = groups.length > 1;
+        const tables = groups
+            .map((g) => {
+                const rows = g.candidates.map((c) => `<tr><td style="text-align:center">${c.number}</td><td>${esc(c.name)}</td><td style="text-align:right">${c.votes}</td><td style="text-align:right">${c.percent}%</td></tr>`).join('');
+                const totalVotes = g.candidates.reduce((sum, c) => sum + (c.votes || 0), 0);
+                const totalRow = `<tr class="total"><td colspan="2" style="text-align:right">Total suara${multi ? ' ' + esc(g.label) : ''}</td><td style="text-align:right">${totalVotes}</td><td style="text-align:right">${totalVotes > 0 ? '100%' : '0%'}</td></tr>`;
+                return `${multi ? `<h3 style="margin:18px 0 8px">${esc(g.label)}</h3>` : ''}<table class="hasil"><tr><th>No</th><th>${multi ? 'Calon' : 'Kandidat'}</th><th>Suara</th><th>%</th></tr>${rows}${totalRow}</table>`;
+            })
+            .join('');
         // Logo sumber punya ruang transparan di sekelilingnya → dipangkas (sama seperti komponen BrandLogo) agar tampil besar & tajam.
         const logoUrl = `${window.location.origin}/ciptakita-logo.png`;
         w.document.write(`<html><head><title>Laporan ${esc(r.election.name)}</title><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:sans-serif;padding:24px;color:#0f172a}.brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c2668;padding-bottom:14px;margin-bottom:20px}.logo{position:relative;overflow:hidden;height:84px;aspect-ratio:860/312}.logo img{position:absolute;width:119.07%;height:218.59%;left:-10.7%;top:-55.77%;max-width:none}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:8px}th{background:#f1f5f9}table.hasil th:first-child,table.hasil td:first-child{width:56px}tr.total td{background:#eef2ff;font-weight:700;border-top:2px solid #0c2668}code{word-break:break-all}</style></head><body>
 <div class="brand"><div class="logo"><img src="${logoUrl}" alt="CiptaKita.id" /></div><div style="text-align:right;font-size:13px;color:#475569"><b style="font-size:15px;color:#0f172a">Pilihan Kita</b><br>${esc(r.election.school_name || '')}</div></div>
 <h2>Laporan Hasil — ${esc(r.election.name)}</h2><p>Status: ${STATUS_LABEL[r.election.status]} · Dibuat: ${formatDateTime(data.generated_at)}</p>
-<table class="hasil"><tr><th>No</th><th>Kandidat</th><th>Suara</th><th>%</th></tr>${rows}${totalRow}</table>
+${tables}
 <p>Partisipasi: siswa ${r.participation.students.voted}/${r.participation.students.total}, guru ${r.participation.teachers.voted}/${r.participation.teachers.total}, total ${r.participation.all.voted}/${r.participation.all.total}.</p>
 <p>Verifikasi ledger: <b>${data.verification.ok ? 'VALID' : 'TIDAK VALID'}</b> — ${data.verification.sealed} suara tersegel, ${data.verification.pending} menunggu.</p>
 <p>Hash terakhir: <code>${data.verification.head ?? '-'}</code></p>

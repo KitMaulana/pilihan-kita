@@ -27,7 +27,8 @@ class CandidateController extends Controller
     {
         $election = $this->editableElection();
         $data = $request->safe()->except(['photo', 'remove_photo']);
-        $this->ensureUniqueNumber($election, (int) $data['number']);
+        $data['position'] = $this->resolvePosition($election, $data['position'] ?? null);
+        $this->ensureUniqueNumber($election, (int) $data['number'], $data['position']);
 
         $candidate = new Candidate($data + ['election_id' => $election->id]);
         if ($request->hasFile('photo')) {
@@ -45,8 +46,11 @@ class CandidateController extends Controller
         abort_unless($candidate->election_id === $election->id, 404);
 
         $data = $request->safe()->except(['photo', 'remove_photo']);
-        if (isset($data['number']) && (int) $data['number'] !== $candidate->number) {
-            $this->ensureUniqueNumber($election, (int) $data['number']);
+        $position = $this->resolvePosition($election, $data['position'] ?? $candidate->position);
+        $data['position'] = $position;
+        $number = (int) ($data['number'] ?? $candidate->number);
+        if ($number !== $candidate->number || $position !== $candidate->position) {
+            $this->ensureUniqueNumber($election, $number, $position, $candidate->id);
         }
         $candidate->fill($data);
 
@@ -93,10 +97,31 @@ class CandidateController extends Controller
         return $election;
     }
 
-    private function ensureUniqueNumber(Election $election, int $number): void
+    /** Nomor urut unik per jabatan (skema terpisah: ketua No. 1 dan wakil No. 1 boleh ada bersamaan). */
+    private function ensureUniqueNumber(Election $election, int $number, string $position, ?int $exceptId = null): void
     {
-        if ($election->candidates()->where('number', $number)->exists()) {
-            throw ValidationException::withMessages(['number' => "Nomor urut {$number} sudah dipakai."]);
+        $taken = $election->candidates()->where('position', $position)->where('number', $number)
+            ->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->exists();
+        if ($taken) {
+            $label = $position === 'pair' ? '' : ' untuk '.Election::POSITION_LABELS[$position];
+            throw ValidationException::withMessages(['number' => "Nomor urut {$number}{$label} sudah dipakai."]);
         }
+    }
+
+    /** Jabatan harus sesuai skema sesi: berpasangan → pair; terpisah → ketua / wakil (wajib dipilih). */
+    private function resolvePosition(Election $election, ?string $requested): string
+    {
+        if ($election->ballotMode() === Election::MODE_PAIR) {
+            if ($requested !== null && $requested !== 'pair') {
+                throw ValidationException::withMessages(['position' => 'Sesi ini memakai skema berpasangan (ketua & wakil satu pasangan). Ubah skema di Jadwal & Status bila ingin dipilih terpisah.']);
+            }
+
+            return 'pair';
+        }
+        if (! in_array($requested, ['ketua', 'wakil'], true)) {
+            throw ValidationException::withMessages(['position' => 'Pilih jabatan kandidat: Ketua atau Wakil.']);
+        }
+
+        return $requested;
     }
 }

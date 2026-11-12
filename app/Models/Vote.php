@@ -19,7 +19,7 @@ class Vote extends Model
 
     protected $keyType = 'string';
 
-    protected $fillable = ['id', 'election_id', 'candidate_id', 'receipt_code', 'nonce', 'seq', 'prev_hash', 'hash'];
+    protected $fillable = ['id', 'election_id', 'candidate_id', 'position', 'receipt_code', 'nonce', 'seq', 'prev_hash', 'hash'];
 
     protected static function booted(): void
     {

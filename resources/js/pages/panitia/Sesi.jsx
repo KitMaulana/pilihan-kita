@@ -7,6 +7,7 @@ import { switchSession, useSessions } from '../../components/SessionSwitcher';
 import { Alert, Badge, EmptyState, Field, Spinner, toast } from '../../components/ui';
 import { IconCopy, IconExternal, IconPlus, IconSchool, IconTrash } from '../../components/Icons';
 import DeleteSessionDialog from '../../components/DeleteSessionDialog';
+import BallotModePicker from '../../components/BallotModePicker';
 
 const year = new Date().getFullYear();
 const statusColor = (s) => (s === 'open' ? 'green' : s === 'published' ? 'blue' : s === 'closed' ? 'red' : 'gray');
@@ -14,7 +15,7 @@ const statusColor = (s) => (s === 'open' ? 'green' : s === 'published' ? 'blue' 
 function CreateSession() {
     const qc = useQueryClient();
     const navigate = useNavigate();
-    const [form, setForm] = useState({ school_name: '', name: `Pemilihan Ketua OSIS ${year}/${year + 1}` });
+    const [form, setForm] = useState({ school_name: '', name: `Pemilihan Ketua OSIS ${year}/${year + 1}`, ballot_mode: 'pair' });
     const [error, setError] = useState(null);
 
     const create = useMutation({
@@ -55,6 +56,9 @@ function CreateSession() {
                 <button className="btn-primary" disabled={create.isPending || !form.school_name.trim() || !form.name.trim()}>
                     {create.isPending ? 'Membuat…' : 'Buat sesi'}
                 </button>
+                <div className="sm:col-span-3">
+                    <BallotModePicker value={form.ballot_mode} onChange={(ballot_mode) => setForm({ ...form, ballot_mode })} />
+                </div>
             </form>
             {error && <Alert type="danger">{error}</Alert>}
         </section>
@@ -102,6 +106,7 @@ export default function Sesi() {
                                     <div className="min-w-0">
                                         <h2 className="truncate text-lg font-extrabold text-slate-900">{s.school_name}</h2>
                                         <p className="truncate text-sm text-slate-500">{s.name}</p>
+                                        <p className="text-xs font-semibold text-brand-700">{s.ballot_mode === 'separate' ? 'Ketua & wakil dipilih terpisah' : 'Ketua & wakil berpasangan'}</p>
                                     </div>
                                 </div>
                                 <div className="flex shrink-0 flex-col items-end gap-1">

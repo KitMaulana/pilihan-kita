@@ -11,6 +11,8 @@ class CandidateResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'position' => $this->position ?? 'pair',
+            'position_label' => \App\Models\Election::POSITION_LABELS[$this->position ?? 'pair'] ?? null,
             'number' => $this->number,
             'name' => $this->name,
             'class_name' => $this->class_name,

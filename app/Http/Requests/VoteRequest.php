@@ -15,7 +15,9 @@ class VoteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'candidate_id' => ['required', 'integer'],
+            'candidate_id' => ['required_without:choices', 'nullable', 'integer'],
+            'choices' => ['required_without:candidate_id', 'array'],
+            'choices.*' => ['integer'],
             'idempotency_key' => ['required', 'string', 'min:16', 'max:64'],
         ];
     }

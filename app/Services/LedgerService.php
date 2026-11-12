@@ -110,10 +110,23 @@ class LedgerService
         if ((int) $election->ledger_count !== $sealed) {
             $errors[] = "ledger_count ({$election->ledger_count}) ≠ jumlah suara tersegel ({$sealed}).";
         }
-        // Rekonsiliasi alur check-in → bilik: setiap check-in menjadi tepat satu suara ATAU satu hak masuk tersisa.
-        if ($votes + $creditsWaiting !== $turnout) {
-            $errors[] = "Suara ({$votes}) + hak masuk bilik belum terpakai ({$creditsWaiting}) ≠ jumlah check-in ({$turnout}).";
+        // Rekonsiliasi alur check-in → bilik, PER JABATAN: setiap check-in menjadi tepat satu suara untuk
+        // setiap jabatan pada skema sesi (berpasangan: 1; terpisah: ketua & wakil) ATAU satu hak masuk tersisa.
+        $byPosition = Vote::where('election_id', $election->id)
+            ->select('position', DB::raw('COUNT(*) as total'))->groupBy('position')->pluck('total', 'position')
+            ->map(fn ($n) => (int) $n)->all();
+        foreach ($election->positions() as $position) {
+            $count = $byPosition[$position] ?? 0;
+            if ($count + $creditsWaiting !== $turnout) {
+                $label = Election::POSITION_LABELS[$position];
+                $errors[] = "Suara {$label} ({$count}) + hak masuk bilik belum terpakai ({$creditsWaiting}) ≠ jumlah check-in ({$turnout}).";
+            }
         }
+        foreach (array_diff(array_keys($byPosition), $election->positions()) as $stray) {
+            $errors[] = "Ada {$byPosition[$stray]} suara berjabatan '{$stray}' yang tidak sesuai skema pemilihan.";
+        }
+        // Satu surat suara skema terpisah = satu baris per jabatan dengan resi sama: tiap resi harus lengkap.
+        $ballots = Vote::where('election_id', $election->id)->distinct()->count('receipt_code');
 
         return [
             'ok' => $errors === [],
@@ -121,6 +134,8 @@ class LedgerService
             'pending' => $pending,
             'turnout' => $turnout,
             'votes' => $votes,
+            'ballots' => $ballots,
+            'by_position' => $byPosition,
             'credits_waiting' => $creditsWaiting,
             'head' => $sealed > 0 ? $prev : null,
             'errors' => $errors,

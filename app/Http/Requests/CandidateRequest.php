@@ -36,6 +36,8 @@ class CandidateRequest extends FormRequest
 
         return [
             'number' => [$creating ? 'required' : 'sometimes', 'integer', 'between:1,99'],
+            // Jabatan: pair (skema berpasangan) atau ketua / wakil (skema terpisah). Dicek terhadap skema sesi di controller.
+            'position' => ['sometimes', 'string', 'in:pair,ketua,wakil'],
             'name' => [$creating ? 'required' : 'sometimes', 'string', 'max:150'],
             'class_name' => ['nullable', 'string', 'max:50'],
             'vision' => ['nullable', 'string', 'max:2000'],

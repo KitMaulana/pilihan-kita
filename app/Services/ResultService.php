@@ -39,17 +39,33 @@ class ResultService
             ->groupBy('candidate_id')
             ->pluck('total', 'candidate_id');
 
-        $counted = (int) $counts->sum();
+        // Jumlah SURAT SUARA (bukan baris): skema terpisah menyimpan ketua & wakil sebagai dua baris dengan resi sama.
+        $counted = Vote::where('election_id', $election->id)->distinct()->count('receipt_code');
 
-        $candidates = $election->candidates()->where('is_active', true)->get()->map(fn ($c) => [
-            'id' => $c->id,
-            'number' => $c->number,
-            'name' => $c->name,
-            'class_name' => $c->class_name,
-            'photo_url' => $c->photoUrl(),
-            'votes' => (int) ($counts[$c->id] ?? 0),
-            'percent' => $counted > 0 ? round(($counts[$c->id] ?? 0) * 100 / $counted, 2) : 0,
-        ])->values();
+        // Perolehan dikelompokkan per jabatan; persentase dihitung di dalam jabatannya masing-masing.
+        $active = $election->candidates()->where('is_active', true)->whereIn('position', $election->positions())->get();
+        $positions = collect($election->positions())->map(function ($position) use ($active, $counts) {
+            $group = $active->where('position', $position);
+            $total = (int) $group->sum(fn ($c) => (int) ($counts[$c->id] ?? 0));
+
+            return [
+                'key' => $position,
+                'label' => Election::POSITION_LABELS[$position],
+                'votes_counted' => $total,
+                'candidates' => $group->map(fn ($c) => [
+                    'id' => $c->id,
+                    'position' => $position,
+                    'number' => $c->number,
+                    'name' => $c->name,
+                    'class_name' => $c->class_name,
+                    'photo_url' => $c->photoUrl(),
+                    'votes' => (int) ($counts[$c->id] ?? 0),
+                    'percent' => $total > 0 ? round(($counts[$c->id] ?? 0) * 100 / $total, 2) : 0,
+                ])->sortBy('number')->values()->all(),
+            ];
+        })->values();
+        // Daftar datar (kompatibel dengan tampilan lama): semua kandidat dari semua jabatan.
+        $candidates = $positions->flatMap(fn ($p) => $p['candidates'])->values();
 
         $eligible = Voter::where('is_active', true)->where('election_id', $election->id)
             ->select('type', DB::raw('COUNT(*) as total'))->groupBy('type')->pluck('total', 'type');
@@ -79,6 +95,8 @@ class ResultService
                 'published_at' => $election->published_at?->toIso8601String(),
             ],
             'is_final' => $election->status === Election::PUBLISHED,
+            'ballot_mode' => $election->ballotMode(),
+            'positions' => $positions,
             'candidates' => $candidates,
             'votes_counted' => $counted,
             'votes_pending' => max(0, $all['voted'] - $counted),

@@ -33,8 +33,11 @@ class ElectionService
         $info = [];
 
         if ($to === Election::OPEN) {
-            if ($election->candidates()->where('is_active', true)->count() < 1) {
-                throw ValidationException::withMessages(['status' => 'Tambahkan minimal satu kandidat aktif sebelum membuka pemilihan.']);
+            foreach ($election->positions() as $position) {
+                if ($election->candidates()->where('is_active', true)->where('position', $position)->count() < 1) {
+                    $what = $position === 'pair' ? 'kandidat' : 'calon '.Election::POSITION_LABELS[$position];
+                    throw ValidationException::withMessages(['status' => "Tambahkan minimal satu {$what} aktif sebelum membuka pemilihan."]);
+                }
             }
             if ($election->closes_at && $election->closes_at->isPast()) {
                 throw ValidationException::withMessages(['status' => 'Jam tutup sudah lewat. Perbarui jadwal terlebih dahulu.']);

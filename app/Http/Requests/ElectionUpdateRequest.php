@@ -30,6 +30,7 @@ class ElectionUpdateRequest extends FormRequest
             'settings.ticket_vote_ttl' => ['sometimes', 'integer', 'between:60,900'],
             'settings.seal_batch_size' => ['sometimes', 'integer', 'between:1,100'],
             'settings.require_liveness' => ['sometimes', 'boolean'],
+            'settings.ballot_mode' => ['sometimes', 'in:pair,separate'],
         ];
     }
 
