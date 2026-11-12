@@ -23,6 +23,9 @@ class DemoSeeder extends Seeder
             'settings' => Election::DEFAULT_SETTINGS,
         ]);
 
+        // Panitia terikat ke satu sekolah: akun panitia bawaan (lokal) ditugaskan ke sekolah demo ini.
+        \App\Models\User::where('role', \App\Models\User::ROLE_PANITIA)->whereNull('election_id')->update(['election_id' => $election->id]);
+
         $candidates = [
             [1, 'Raka Pratama & Nadia Putri', 'XI IPA 2', 'Mewujudkan OSIS yang inklusif, kreatif, dan berprestasi.', "Program literasi digital\nKotak aspirasi daring\nLiga olahraga antarkelas"],
             [2, 'Fajar Hidayat & Salsa Aulia', 'XI IPS 1', 'OSIS sebagai rumah bersama seluruh siswa.', "Bank sampah sekolah\nMentoring adik kelas\nPentas seni tiap semester"],

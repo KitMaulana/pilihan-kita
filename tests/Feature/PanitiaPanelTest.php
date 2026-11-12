@@ -19,8 +19,8 @@ class PanitiaPanelTest extends TestCase
     public function test_kandidat_bisa_dikelola_saat_draf_saja(): void
     {
         Storage::fake('public');
-        $this->actingAs($this->panitia());
-        $election = Election::create(['name' => 'X', 'status' => Election::DRAFT]);
+        $election = $this->schoolSession('SMAN Uji');
+        $this->actingAs($this->panitia($election));
 
         $id = $this->post('/api/v1/panitia/candidates', [
             'number' => 1, 'name' => 'Raka & Nadia', 'vision' => 'Visi', 'photo' => UploadedFile::fake()->image('a.jpg', 300, 400),

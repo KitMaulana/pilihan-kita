@@ -64,13 +64,19 @@ class AuthTest extends TestCase
 
     public function test_admin_dapat_membuat_akun_panitia(): void
     {
+        $school = $this->schoolSession('SMAN Uji');
         $this->actingAs($this->admin());
 
+        // Panitia WAJIB terikat ke satu sekolah.
         $this->postJson('/api/v1/panitia/users', [
             'name' => 'Panitia Baru', 'email' => 'baru@x.test', 'password' => 'katasandi1', 'role' => 'panitia',
-        ])->assertCreated();
+        ])->assertStatus(422)->assertJsonValidationErrors('election_id');
 
-        $this->assertDatabaseHas('users', ['email' => 'baru@x.test', 'role' => 'panitia']);
+        $this->postJson('/api/v1/panitia/users', [
+            'name' => 'Panitia Baru', 'email' => 'baru@x.test', 'password' => 'katasandi1', 'role' => 'panitia', 'election_id' => $school->id,
+        ])->assertCreated()->assertJsonPath('data.school_name', 'SMAN Uji');
+
+        $this->assertDatabaseHas('users', ['email' => 'baru@x.test', 'role' => 'panitia', 'election_id' => $school->id]);
     }
 
     public function test_spa_dilayani_untuk_rute_frontend(): void

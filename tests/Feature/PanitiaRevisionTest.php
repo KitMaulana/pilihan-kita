@@ -49,8 +49,8 @@ class PanitiaRevisionTest extends TestCase
 
     public function test_draf_bisa_langsung_ditutup_lalu_buat_pemilihan_baru(): void
     {
-        $this->actingAs($this->panitia());
-        $election = Election::create(['name' => 'Draf', 'status' => Election::DRAFT]);
+        $election = $this->schoolSession('SMAN Uji');
+        $this->actingAs($this->panitia($election));
 
         $this->getJson('/api/v1/panitia/election')
             ->assertJsonPath('data.allowed_transitions', [Election::OPEN, Election::CLOSED])

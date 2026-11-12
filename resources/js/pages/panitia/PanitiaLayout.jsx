@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import { BrandLogo } from '../../components/BrandLogo';
 import {
     IconActivity,
+    IconAlertTriangle,
     IconAward,
     IconCalendarClock,
     IconClose,
@@ -58,6 +59,37 @@ export default function PanitiaLayout() {
         }`;
 
     const initial = (user?.name || 'P').trim().charAt(0).toUpperCase();
+    // Sekolah yang boleh dikelola akun ini: panitia = sekolahnya sendiri (tetap), admin = sesi yang sedang dipilih.
+    const schoolName = isAdmin ? election?.school_name : user?.school_name;
+
+    if (user && !isAdmin && !user.election_id) {
+        return (
+            <div className="bg-light-grid flex min-h-dvh items-center justify-center p-4">
+                <div className="card w-full max-w-md space-y-4 text-center">
+                    <div className="flex justify-center">
+                        <BrandLogo variant="full" size="md" />
+                    </div>
+                    <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                        <IconAlertTriangle className="size-7" />
+                    </div>
+                    <h1 className="text-xl font-extrabold text-slate-900">Akun belum ditugaskan ke sekolah</h1>
+                    <p className="text-sm text-slate-600">
+                        Akun <b>{user.name}</b> adalah akun panitia, tetapi belum dikaitkan dengan sekolah mana pun, sehingga belum bisa membuka panel. Minta admin menugaskan sekolah Anda di menu <b>Pengguna</b>.
+                    </p>
+                    <button
+                        className="btn-secondary w-full"
+                        onClick={async () => {
+                            await logout();
+                            navigate('/panitia/login');
+                        }}
+                    >
+                        <IconLogOut className="size-4" />
+                        Keluar
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-light-grid min-h-dvh lg:flex">
@@ -74,8 +106,14 @@ export default function PanitiaLayout() {
                         </div>
                         <div className="flex items-center justify-between text-[11px] font-semibold tracking-wider text-brand-200 uppercase">
                             <span>Pilihan Kita</span>
-                            <span className="rounded bg-crimson-500/80 px-1.5 py-0.5 text-[10px] font-bold text-white">Panitia</span>
+                            <span className="rounded bg-crimson-500/80 px-1.5 py-0.5 text-[10px] font-bold text-white">{isAdmin ? 'Admin' : 'Panitia'}</span>
                         </div>
+                        {schoolName && (
+                            <div className="flex items-center gap-2 rounded-xl bg-white/10 px-2.5 py-2" title={schoolName}>
+                                <IconSchool className="size-4 shrink-0 text-brand-200" />
+                                <span className="min-w-0 truncate text-sm font-extrabold text-white">{schoolName}</span>
+                            </div>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -103,7 +141,9 @@ export default function PanitiaLayout() {
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="truncate font-bold text-white">{user?.name}</p>
-                            <p className="text-[11px] font-semibold tracking-wider text-brand-200 uppercase">{user?.role}</p>
+                            <p className="text-[11px] font-semibold tracking-wider text-brand-200 uppercase">
+                                {isAdmin ? 'Admin · semua sekolah' : `Panitia${user?.school_name ? ` · ${user.school_name}` : ''}`}
+                            </p>
                         </div>
                     </div>
                     <button

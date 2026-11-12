@@ -32,9 +32,12 @@ abstract class TestCase extends BaseTestCase
         return User::factory()->admin()->create();
     }
 
-    protected function panitia(): User
+    /** Panitia selalu terikat ke satu sekolah: sesi yang diberikan, sesi terbaru, atau satu sesi baru bila belum ada. */
+    protected function panitia(?Election $school = null): User
     {
-        return User::factory()->create();
+        $school ??= Election::query()->latest('id')->first() ?? $this->schoolSession();
+
+        return User::factory()->create(['election_id' => $school->id]);
     }
 
     /** Sesi (sekolah) draf — konteks wajib untuk panel panitia multi-sekolah. */

@@ -136,6 +136,49 @@ class MultiSchoolTest extends TestCase
         $this->postJson('/api/v1/panitia/election', ['school_name' => 'X', 'name' => 'Y'])->assertForbidden();
     }
 
+    public function test_panitia_tanpa_sekolah_tidak_punya_akses_apa_pun(): void
+    {
+        $this->openSession('SMAN 1 Ciruas');
+        $this->openSession('SMAN 2 Serang');
+        // Akun lama / sekolah dihapus: panitia tanpa sekolah BUKAN "semua sekolah".
+        $this->actingAs(User::factory()->create(['election_id' => null]));
+
+        foreach (['election', 'voters', 'sessions', 'dashboard', 'devices', 'candidates', 'logs/attempts'] as $path) {
+            $this->getJson("/api/v1/panitia/{$path}")->assertForbidden()->assertJsonPath('code', 'no_school');
+        }
+        $this->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('user.election_id', null)->assertJsonPath('user.role', 'panitia');
+    }
+
+    public function test_menugaskan_panitia_ke_sekolah_dan_memindahkannya(): void
+    {
+        $a = $this->openSession('SMAN 1 Ciruas');
+        $b = $this->openSession('SMAN 2 Serang');
+        $panitia = User::factory()->create(['election_id' => null]);
+        $this->actingAs($this->admin());
+
+        // Mengosongkan sekolah panitia ditolak; memindahkan ke sekolah lain diizinkan.
+        $this->patchJson("/api/v1/panitia/users/{$panitia->id}", ['election_id' => null])->assertStatus(422)->assertJsonValidationErrors('election_id');
+        $this->patchJson("/api/v1/panitia/users/{$panitia->id}", ['election_id' => $a->id])->assertOk()->assertJsonPath('data.school_name', 'SMAN 1 Ciruas');
+        $this->patchJson("/api/v1/panitia/users/{$panitia->id}", ['election_id' => $b->id])->assertOk()->assertJsonPath('data.school_name', 'SMAN 2 Serang');
+
+        // Naik jadi admin: tidak terikat sekolah.
+        $this->patchJson("/api/v1/panitia/users/{$panitia->id}", ['role' => 'admin'])->assertOk()->assertJsonPath('data.election_id', null);
+    }
+
+    public function test_hapus_sesi_membuat_panitianya_tanpa_sekolah_dan_terkunci(): void
+    {
+        $a = $this->openSession('SMAN 1 Ciruas');
+        $b = $this->schoolSession('SMA Salah Buat');
+        $panitiaB = User::factory()->create(['election_id' => $b->id]);
+        $this->actingAs($this->admin());
+        $this->deleteJson('/api/v1/panitia/election', ['confirm' => 'HAPUS SESI'], ['X-Session-Id' => $b->id])->assertOk();
+        $this->assertNull($panitiaB->fresh()->election_id);
+
+        $this->actingAs($panitiaB->fresh());
+        $this->getJson('/api/v1/panitia/voters')->assertForbidden()->assertJsonPath('code', 'no_school');
+        $this->assertNotNull(Election::find($a->id));
+    }
+
     public function test_admin_selalu_tanpa_batasan_sesi(): void
     {
         $a = $this->schoolSession('SMAN 1 Ciruas');

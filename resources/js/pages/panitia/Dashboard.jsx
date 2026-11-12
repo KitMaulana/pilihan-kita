@@ -66,7 +66,15 @@ export default function Dashboard() {
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Dasbor Kontrol</h1>
-                    <p className="mt-0.5 text-sm text-slate-500">Pantau partisipasi, perolehan suara langsung, dan status tablet di lapangan.</p>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                        {data.election?.school_name ? (
+                            <>
+                                <b className="text-slate-800">{data.election.school_name}</b> · pantau partisipasi, perolehan suara langsung, dan status tablet di lapangan.
+                            </>
+                        ) : (
+                            'Pantau partisipasi, perolehan suara langsung, dan status tablet di lapangan.'
+                        )}
+                    </p>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 shadow-2xs">
                     <span className="size-2 animate-pulse rounded-full bg-emerald-500" />

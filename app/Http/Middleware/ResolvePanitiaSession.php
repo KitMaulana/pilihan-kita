@@ -21,6 +21,14 @@ class ResolvePanitiaSession
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+
+        // Panitia tanpa sekolah tidak boleh mengakses panel sama sekali (bukan "semua sekolah").
+        if ($user && ! $user->hasSchoolAccess()) {
+            return response()->json([
+                'code' => 'no_school',
+                'message' => 'Akun panitia Anda belum ditugaskan ke sekolah. Hubungi admin.',
+            ], 403);
+        }
         $requested = $request->header('X-Session-Id') ?: $request->query('session_id');
         $requested = is_numeric($requested) ? (int) $requested : null;
         $only = $user?->restrictedElectionId();

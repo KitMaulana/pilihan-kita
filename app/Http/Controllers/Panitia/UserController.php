@@ -23,6 +23,7 @@ class UserController extends Controller
         if (($data['role'] ?? null) === User::ROLE_ADMIN) {
             $data['election_id'] = null; // admin selalu mengakses semua sesi
         }
+        $this->ensurePanitiaHasSchool($data['role'] ?? null, $data['election_id'] ?? null);
         $user = User::create($data);
         $audit->log('user.created', $user, ['email' => $user->email, 'role' => $user->role]);
 
@@ -40,9 +41,20 @@ class UserController extends Controller
         if (($data['role'] ?? $user->role) === User::ROLE_ADMIN) {
             $data['election_id'] = null;
         }
+        $this->ensurePanitiaHasSchool(
+            $data['role'] ?? $user->role,
+            array_key_exists('election_id', $data) ? $data['election_id'] : $user->election_id,
+        );
         $user->fill($data)->save();
         $audit->log('user.updated', $user, ['fields' => array_keys(array_diff_key($data, ['password' => 1])), 'password_changed' => isset($data['password'])]);
 
         return new UserResource($user);
+    }
+    /** Setiap akun panitia harus terikat ke satu sekolah; hanya admin yang boleh tanpa sekolah. */
+    private function ensurePanitiaHasSchool(?string $role, mixed $electionId): void
+    {
+        if ($role === User::ROLE_PANITIA && empty($electionId)) {
+            throw ValidationException::withMessages(['election_id' => 'Pilih sekolah untuk akun panitia. Panitia hanya dapat mengelola satu sekolah.']);
+        }
     }
 }

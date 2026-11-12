@@ -12,6 +12,9 @@ function UserForm({ user, onClose }) {
     const [error, setError] = useState(null);
     const save = useMutation({
         mutationFn: () => {
+            if (form.role === 'panitia' && form.election_id === '') {
+                return Promise.reject({ response: { data: { errors: { election_id: ['Pilih sekolah untuk akun panitia. Panitia hanya dapat mengelola satu sekolah.'] } } } });
+            }
             const payload = { ...form, election_id: form.role === 'admin' || form.election_id === '' ? null : Number(form.election_id) };
             return user ? api.patch(`/panitia/users/${user.id}`, payload) : api.post('/panitia/users', payload);
         },
@@ -55,10 +58,12 @@ function UserForm({ user, onClose }) {
                     )}
                 </Field>
                 {form.role === 'panitia' && (
-                    <Field label="Akses sesi sekolah" hint="Panitia yang dibatasi hanya dapat melihat & mengelola data sekolahnya sendiri.">
+                    <Field label="Sekolah yang dikelola" hint="Wajib. Panitia hanya dapat melihat & mengelola data sekolah ini — tidak bisa mengakses sekolah lain.">
                         {(id) => (
-                            <select id={id} className="input" value={form.election_id} onChange={set('election_id')}>
-                                <option value="">Semua sesi sekolah</option>
+                            <select id={id} className="input" value={form.election_id} onChange={set('election_id')} required>
+                                <option value="" disabled>
+                                    — Pilih sekolah —
+                                </option>
                                 {sessions.data?.data.map((s) => (
                                     <option key={s.id} value={s.id}>
                                         {s.label}
@@ -105,7 +110,7 @@ export default function Pengguna() {
                                     <th>Username</th>
                                     <th>Email</th>
                                     <th>Peran</th>
-                                    <th>Akses sesi</th>
+                                    <th>Sekolah</th>
                                     <th>Status</th>
                                     <th />
                                 </tr>
@@ -119,7 +124,15 @@ export default function Pengguna() {
                                         <td>
                                             <Badge color={u.role === 'admin' ? 'blue' : 'gray'}>{u.role}</Badge>
                                         </td>
-                                        <td className="text-sm">{u.role === 'admin' || !u.election_label ? <span className="text-slate-500">Semua sekolah</span> : u.election_label}</td>
+                                        <td className="text-sm">
+                                            {u.role === 'admin' ? (
+                                                <span className="text-slate-500">Semua sekolah</span>
+                                            ) : u.school_name ? (
+                                                <span className="font-semibold text-slate-800">{u.school_name}</span>
+                                            ) : (
+                                                <Badge color="red">Belum ditugaskan</Badge>
+                                            )}
+                                        </td>
                                         <td>{u.is_active ? <Badge color="green" dot>Aktif</Badge> : <Badge>Nonaktif</Badge>}</td>
                                         <td className="text-right">
                                             <button className="btn-ghost btn-sm" onClick={() => setEditing(u)}>

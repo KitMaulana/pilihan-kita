@@ -45,22 +45,33 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
-    /** Panitia yang dibatasi ke satu sesi (sekolah). Admin selalu bisa mengakses semua sesi. */
+    /** Panitia terikat ke tepat satu sesi (sekolah). Admin selalu bisa mengakses semua sesi. */
     public function election(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Election::class);
     }
 
-    /** Sesi yang boleh diakses akun ini: null = semua, atau satu id sesi. */
+    /** Sesi yang boleh diakses akun ini: null = semua (admin), atau satu id sesi (panitia). */
     public function restrictedElectionId(): ?int
     {
         return $this->isAdmin() ? null : ($this->election_id ? (int) $this->election_id : null);
     }
 
+    /**
+     * Admin selalu punya akses. Panitia HANYA bila sudah ditugaskan ke sebuah sekolah —
+     * akun panitia tanpa sekolah tidak boleh mengakses apa pun (bukan "semua sekolah").
+     */
+    public function hasSchoolAccess(): bool
+    {
+        return $this->isAdmin() || $this->election_id !== null;
+    }
+
     public function canAccessElection(?Election $election): bool
     {
-        $only = $this->restrictedElectionId();
+        if ($election === null) {
+            return false;
+        }
 
-        return $election !== null && ($only === null || $only === $election->id);
+        return $this->isAdmin() || ($this->election_id !== null && (int) $this->election_id === $election->id);
     }
 }
