@@ -6,6 +6,7 @@ import { detectFaces, embedFace, loadFaceEngine, loadImageFile } from '../../fea
 import { assessEnrollment, measureQuality } from '../../features/face/quality';
 import { DETECTION, MODEL_VERSION } from '../../features/face/config';
 import { IconUpload } from '../../components/Icons';
+import { IMAGE_ACCEPT, IMAGE_LABEL, IMAGE_NAME } from '../../lib/image';
 import { Alert, Badge, ProgressBar, Spinner } from '../../components/ui';
 
 /** Nama berkas → kunci pemilih: "0071234567.jpg" → "0071234567", "id-15.png" → "id-15". */
@@ -16,7 +17,7 @@ function keyFromFile(name) {
     return base.replace(/[\s.\-_]/g, '');
 }
 
-const ACCEPT = /\.(jpe?g|png|webp)$/i;
+const ACCEPT = IMAGE_NAME; // JPG, PNG, WebP, GIF, BMP, AVIF, HEIC/HEIF
 
 /**
  * Unggah pas foto: SETIAP foto diproses di browser panitia (deteksi → cek kualitas →
@@ -181,8 +182,8 @@ export default function UnggahFoto() {
                     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 p-4 text-center transition hover:border-brand-500 hover:bg-brand-50/40">
                         <IconUpload className="size-6 text-brand-700" />
                         <span className="text-sm font-bold text-slate-800">Pilih berkas foto</span>
-                        <span className="text-xs text-slate-500">JPG, PNG, atau WebP (bisa banyak sekaligus)</span>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} disabled={running} />
+                        <span className="text-xs text-slate-500">{IMAGE_LABEL} (bisa banyak sekaligus)</span>
+                        <input type="file" accept={IMAGE_ACCEPT} multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} disabled={running} />
                     </label>
                     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 p-4 text-center transition hover:border-brand-500 hover:bg-brand-50/40">
                         <IconUpload className="size-6 text-brand-700" />

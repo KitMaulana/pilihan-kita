@@ -4,12 +4,12 @@ import { api, errorMessage } from '../../lib/api';
 import { IconAward } from '../../components/Icons';
 import { Alert, Badge, EmptyState, Field, Modal, Spinner, toast } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
+import { IMAGE_ACCEPT, IMAGE_LABEL, ImageFormatError, isImageFile, prepareUpload } from '../../lib/image';
 
 const POSITION_LABELS = { pair: 'Pasangan Ketua & Wakil', ketua: 'Calon Ketua OSIS', wakil: 'Calon Wakil Ketua OSIS' };
 const positionsFor = (mode) => (mode === 'separate' ? ['ketua', 'wakil'] : ['pair']);
 
 const MAX_PHOTO = 2 * 1024 * 1024;
-const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 function CandidateForm({ candidate, mode, defaultPosition, nextNumberFor, onClose }) {
     const qc = useQueryClient();
@@ -25,28 +25,37 @@ function CandidateForm({ candidate, mode, defaultPosition, nextNumberFor, onClos
     });
     const [photo, setPhoto] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
+    const [photoBusy, setPhotoBusy] = useState(false);
+    const [photoNote, setPhotoNote] = useState(null);
     const [removePhoto, setRemovePhoto] = useState(false);
     const [error, setError] = useState(null);
     const [fieldErrors, setFieldErrors] = useState({});
 
     useEffect(() => () => photoPreview && URL.revokeObjectURL(photoPreview), [photoPreview]);
 
-    function pickPhoto(file) {
+    /**
+     * Foto kandidat dapat berformat apa pun (JPG, PNG, WebP, HEIC dari iPhone, GIF, BMP, AVIF, …). Format selain
+     * JPG/PNG/WebP, atau foto di atas 2 MB, dikonversi/dikecilkan otomatis di peramban sebelum diunggah.
+     */
+    async function pickPhoto(file) {
         setFieldErrors((f) => ({ ...f, photo: null }));
+        setPhotoNote(null);
         setPhoto(null);
         setPhotoPreview(null);
         if (!file) return;
-        if (!PHOTO_TYPES.includes(file.type)) {
-            setFieldErrors((f) => ({ ...f, photo: 'Format foto harus JPG, PNG, atau WebP.' }));
-            return;
+        setPhotoBusy(true);
+        try {
+            if (!(await isImageFile(file))) throw new ImageFormatError(`Berkas "${file.name}" bukan gambar. Gunakan ${IMAGE_LABEL}.`);
+            const { file: ready, converted, from } = await prepareUpload(file, { maxBytes: MAX_PHOTO });
+            setPhoto(ready);
+            setPhotoPreview(URL.createObjectURL(ready));
+            setRemovePhoto(false);
+            if (converted) setPhotoNote(`Foto ${from === 'HEIC' ? 'HEIC' : 'asli'} dikonversi otomatis ke JPG (${(ready.size / 1048576).toFixed(1)} MB) agar sesuai batas unggah.`);
+        } catch (e) {
+            setFieldErrors((f) => ({ ...f, photo: e.message || 'Foto tidak dapat dibaca.' }));
+        } finally {
+            setPhotoBusy(false);
         }
-        if (file.size > MAX_PHOTO) {
-            setFieldErrors((f) => ({ ...f, photo: `Ukuran foto ${(file.size / 1024 / 1024).toFixed(1)} MB — maksimal 2 MB. Kecilkan dulu fotonya.` }));
-            return;
-        }
-        setPhoto(file);
-        setPhotoPreview(URL.createObjectURL(file));
-        setRemovePhoto(false);
     }
 
     function validate() {
@@ -100,7 +109,7 @@ function CandidateForm({ candidate, mode, defaultPosition, nextNumberFor, onClos
                     <button className="btn-secondary" onClick={onClose}>
                         Batal
                     </button>
-                    <button className="btn-primary" onClick={submit} disabled={save.isPending}>
+                    <button className="btn-primary" onClick={submit} disabled={save.isPending || photoBusy}>
                         {save.isPending ? 'Menyimpan…' : 'Simpan'}
                     </button>
                 </>
@@ -157,8 +166,8 @@ function CandidateForm({ candidate, mode, defaultPosition, nextNumberFor, onClos
                         )}
                     </div>
                     <div className="space-y-2">
-                        <Field label="Foto kandidat (JPG/PNG/WebP, maks. 2 MB)" error={fieldErrors.photo} hint="Opsional. Disarankan potret 3:4.">
-                            {(id) => <input id={id} type="file" accept="image/jpeg,image/png,image/webp" className="input py-2" onChange={(e) => pickPhoto(e.target.files[0] || null)} />}
+                        <Field label="Foto kandidat (JPG, PNG, WebP, HEIC, dll.)" error={fieldErrors.photo} hint={photoBusy ? 'Memproses foto…' : photoNote || 'Opsional. Disarankan potret 3:4. Foto besar & format HEIC dikonversi otomatis.'}>
+                            {(id) => <input id={id} type="file" accept={IMAGE_ACCEPT} className="input py-2" disabled={photoBusy} onChange={(e) => pickPhoto(e.target.files[0] || null)} />}
                         </Field>
                         {candidate?.photo_url && !photo && (
                             <label className="flex items-center gap-2 text-sm text-slate-700">

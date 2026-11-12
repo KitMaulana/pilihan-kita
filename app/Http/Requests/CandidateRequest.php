@@ -61,7 +61,7 @@ class CandidateRequest extends FormRequest
             'mission.max' => 'Misi maksimal 5.000 karakter.',
             'photo.uploaded' => 'Foto gagal diunggah (ukuran melebihi batas server). Gunakan foto maks. 2 MB.',
             'photo.file' => 'Foto gagal diunggah. Coba pilih ulang berkasnya.',
-            'photo.mimes' => 'Foto harus berformat JPG, PNG, atau WebP.',
+            'photo.mimes' => 'Server hanya menerima JPG, PNG, atau WebP. Halaman Kandidat otomatis mengonversi HEIC dan format lain; bila mengunggah dengan cara lain, ubah ke JPG terlebih dahulu.',
             'photo.max' => 'Ukuran foto maksimal 2 MB.',
         ];
     }

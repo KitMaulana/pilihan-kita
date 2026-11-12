@@ -3,6 +3,7 @@
 import * as ort from 'onnxruntime-web/wasm';
 import { DETECTION, MODELS, MODEL_VERSION, WASM_PATHS } from './config';
 import { warpFace } from './align';
+import { decodeImage } from '../../lib/image';
 
 ort.env.wasm.wasmPaths = WASM_PATHS.ort;
 // Multi-thread butuh cross-origin isolation (COOP+COEP). Tanpa itu, pakai 1 thread.
@@ -217,22 +218,10 @@ export function cosine(a, b) {
     return s;
 }
 
-/** Memuat File gambar menjadi ImageBitmap/HTMLImageElement (memperhatikan orientasi EXIF). */
-export async function loadImageFile(file) {
-    if ('createImageBitmap' in window) {
-        try {
-            return await createImageBitmap(file, { imageOrientation: 'from-image' });
-        } catch {
-            /* lanjut ke cara lama */
-        }
-    }
-    const url = URL.createObjectURL(file);
-    try {
-        const img = new Image();
-        img.src = url;
-        await img.decode();
-        return img;
-    } finally {
-        URL.revokeObjectURL(url);
-    }
+/**
+ * Memuat File gambar menjadi ImageBitmap (orientasi EXIF diterapkan). Mendukung JPG/PNG/WebP/GIF/BMP/AVIF
+ * dan HEIC/HEIF (konversi dimuat malas, lihat lib/image.js). Melempar ImageFormatError berpesan Indonesia.
+ */
+export function loadImageFile(file) {
+    return decodeImage(file);
 }

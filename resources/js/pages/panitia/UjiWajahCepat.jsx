@@ -6,6 +6,7 @@ import { assessEnrollment, measureQuality } from '../../features/face/quality';
 import { DETECTION, QUALITY } from '../../features/face/config';
 import { IconAlertTriangle, IconCheckCircle, IconClose, IconFaceScan, IconUpload } from '../../components/Icons';
 import { Alert, Badge, toast } from '../../components/ui';
+import { IMAGE_ACCEPT, IMAGE_LABEL, isImageFile } from '../../lib/image';
 
 const SCAN_FRAMES = 5; // jumlah frame wajah layak yang dirata-rata
 const SCAN_TIMEOUT_MS = 15000;
@@ -16,6 +17,18 @@ function meanEmbedding(list) {
     for (const e of list) for (let i = 0; i < e.length; i++) out[i] += e[i];
     const n = Math.sqrt(out.reduce((a, v) => a + v * v, 0)) || 1;
     return out.map((v) => v / n);
+}
+
+/** Gambar kecil (blob URL) dari bitmap hasil dekode, untuk pratinjau daftar foto acuan. */
+async function thumbnailUrl(bitmap, size = 160) {
+    const scale = Math.min(1, size / Math.max(bitmap.width, bitmap.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(bitmap.width * scale));
+    c.height = Math.max(1, Math.round(bitmap.height * scale));
+    c.getContext('2d').drawImage(bitmap, 0, 0, c.width, c.height);
+    const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.8));
+
+    return blob ? URL.createObjectURL(blob) : '';
 }
 
 function fileLabel(name) {
@@ -152,16 +165,22 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
     const validRefs = refs.filter((r) => r.status === 'ok');
 
     async function addFiles(files) {
-        const images = [...files].filter((f) => f.type.startsWith('image/'));
-        if (!images.length) return toast.error('Pilih berkas gambar (JPG/PNG).');
+        const candidates = [...files];
+        const images = [];
+        for (const f of candidates) if (await isImageFile(f)) images.push(f);
+        if (!images.length) return toast.error(`Pilih berkas gambar (${IMAGE_LABEL}).`);
+        if (images.length < candidates.length) toast.info(`${candidates.length - images.length} berkas dilewati karena bukan gambar.`);
         if (!ready) return toast.error('Model wajah belum siap.');
         for (const f of images) {
             const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            const entry = { id, label: fileLabel(f.name), preview: URL.createObjectURL(f), status: 'processing', warnings: [], error: null, embedding: null };
+            const entry = { id, label: fileLabel(f.name), preview: '', status: 'processing', warnings: [], error: null, embedding: null };
             setRefs((r) => [...r, entry]);
             let patch;
             try {
                 const bmp = await loadImageFile(f);
+                // Pratinjau dibuat dari hasil dekode (HEIC tidak dapat ditampilkan langsung oleh <img>).
+                const thumb = await thumbnailUrl(bmp);
+                setRefs((r) => r.map((x) => (x.id === id ? { ...x, preview: thumb } : x)));
                 const faces = await detectFaces(bmp, DETECTION.enrollSize);
                 if (faces.length === 0) {
                     patch = { status: 'error', error: 'Tidak ada wajah terdeteksi. Gunakan foto wajah tampak depan yang jelas.' };
@@ -362,12 +381,12 @@ export default function UjiWajahCepat({ engine, livenessReady, threshold, margin
                 >
                     <IconUpload className="size-9 text-brand-700" />
                     <span className="font-bold text-slate-800">Ketuk untuk memilih foto</span>
-                    <span className="text-xs text-slate-500">atau seret &amp; lepas di sini · JPG/PNG · nama berkas dipakai sebagai nama</span>
+                    <span className="text-xs text-slate-500">atau seret &amp; lepas di sini · {IMAGE_LABEL} · nama berkas dipakai sebagai nama</span>
                     <input
                         ref={fileInput}
                         type="file"
                         multiple
-                        accept="image/*"
+                        accept={IMAGE_ACCEPT}
                         className="sr-only"
                         onChange={(e) => {
                             addFiles(e.target.files);

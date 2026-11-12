@@ -10,6 +10,7 @@ import { IconCamera, IconFaceScan } from '../../components/Icons';
 import { Alert, Badge, Field, toast } from '../../components/ui';
 import { useElection } from './PanitiaLayout';
 import UjiWajahCepat from './UjiWajahCepat';
+import { IMAGE_ACCEPT } from '../../lib/image';
 
 const pct = (v) => `${(v * 100).toFixed(2)}%`;
 
@@ -282,7 +283,7 @@ function AdvancedTest({ engine, samples, setSamples }) {
                 <div className="flex flex-wrap gap-2">
                     <label className="btn-secondary btn-sm">
                         Tambah dari foto (nama: KODE_x.jpg)
-                        <input type="file" multiple accept="image/*" className="sr-only" onChange={(e) => addFiles([...e.target.files])} />
+                        <input type="file" multiple accept={IMAGE_ACCEPT} className="sr-only" onChange={(e) => addFiles([...e.target.files])} />
                     </label>
                     <label className="btn-secondary btn-sm">
                         Impor JSON

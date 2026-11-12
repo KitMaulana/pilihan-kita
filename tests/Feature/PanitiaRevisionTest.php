@@ -36,6 +36,19 @@ class PanitiaRevisionTest extends TestCase
         $this->get($url)->assertOk()->assertHeader('Cache-Control');
     }
 
+    public function test_server_menolak_format_foto_tak_didukung_dengan_pesan_yang_menunjuk_solusi(): void
+    {
+        $this->actingAs($this->panitia($this->schoolSession()));
+
+        foreach (['foto.heic' => 'image/heic', 'foto.gif' => 'image/gif', 'catatan.pdf' => 'application/pdf'] as $name => $mime) {
+            $res = $this->post('/api/v1/panitia/candidates', [
+                'number' => 1, 'name' => 'Uji', 'photo' => UploadedFile::fake()->create($name, 50, $mime),
+            ], ['Accept' => 'application/json'])->assertStatus(422)->assertJsonValidationErrors('photo');
+            $this->assertStringContainsString('JPG, PNG, atau WebP', $res->json('errors.photo.0'));
+        }
+        $this->assertSame(0, Candidate::count());
+    }
+
     public function test_pesan_validasi_kandidat_berbahasa_indonesia(): void
     {
         $this->actingAs($this->panitia());
