@@ -23,6 +23,16 @@ const STEP_TITLE = {
  * Bila koneksi putus sesaat, suara dikirim ulang otomatis dengan idempotency key yang sama
  * (server mengembalikan resi yang sama, tidak memakai hak masuk kedua). Pilihan hanya ada di memori.
  */
+/** Foto kandidat; bila belum ada / gagal dimuat (jaringan, berkas hilang) tampil nomor kandidat, bukan ikon gambar rusak. */
+function CandidatePhoto({ src, number }) {
+    const [failed, setFailed] = useState(false);
+    useEffect(() => setFailed(false), [src]);
+    if (src && !failed) {
+        return <img src={src} alt="" decoding="async" onError={() => setFailed(true)} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />;
+    }
+    return <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-7xl font-black text-slate-300">{number}</div>;
+}
+
 export default function PilihKandidatPage({ onDone, onFail, onBusyChange }) {
     const [step, setStep] = useState(0);
     const [picks, setPicks] = useState({}); // jabatan → kandidat (langkah yang sudah dikonfirmasi)
@@ -187,11 +197,7 @@ export default function PilihKandidatPage({ onDone, onFail, onBusyChange }) {
                         aria-label={`${current.key === 'pair' ? 'Kandidat' : current.label} nomor ${c.number}, ${c.name}`}
                     >
                         <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
-                            {c.photo_url ? (
-                                <img src={c.photo_url} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
-                            ) : (
-                                <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-7xl font-black text-slate-300">{c.number}</div>
-                            )}
+                            <CandidatePhoto src={c.photo_url} number={c.number} />
                             <span className="absolute top-3 left-3 flex size-13 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-900 to-brand-700 font-mono text-2xl font-black text-white shadow-lg ring-2 ring-white/80">
                                 {c.number}
                             </span>

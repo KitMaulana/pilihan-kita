@@ -94,7 +94,7 @@ class PublicController extends Controller
         abort_unless($candidate->photo_path && $disk->exists($candidate->photo_path), 404);
 
         return $disk->response($candidate->photo_path, null, [
-            'Cache-Control' => 'public, max-age=86400',
+            'Cache-Control' => 'public, max-age=31536000, immutable', // URL berversi (?v=) berubah saat foto diganti
         ]);
     }
 

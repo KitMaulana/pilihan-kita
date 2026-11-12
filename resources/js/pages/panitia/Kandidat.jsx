@@ -203,6 +203,9 @@ function CandidateCard({ c, editable, onEdit, onRemove, mismatch = false }) {
                 <span className="absolute top-3 left-3 flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-900 to-brand-700 font-mono text-xl font-black text-white shadow-md ring-2 ring-white/80">
                     {c.number}
                 </span>
+                {c.photo_missing && (
+                    <span className="absolute bottom-3 left-3 rounded-lg bg-crimson-600 px-2.5 py-1 text-xs font-bold text-white shadow">Foto hilang di server — unggah ulang</span>
+                )}
                 {(!c.is_active || mismatch) && (
                     <span className="absolute top-3 right-3">
                         <Badge color={mismatch ? 'red' : 'gray'}>{mismatch ? 'Tidak sesuai skema' : 'Nonaktif'}</Badge>
