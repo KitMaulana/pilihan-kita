@@ -182,11 +182,15 @@ function StatusPanel({ election }) {
         if (!w) return toast.error('Izinkan pop-up untuk mencetak laporan.');
         const r = data.results;
         const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-        const rows = r.candidates.map((c) => `<tr><td>${c.number}</td><td>${esc(c.name)}</td><td style="text-align:right">${c.votes}</td><td style="text-align:right">${c.percent}%</td></tr>`).join('');
-        w.document.write(`<html><head><title>Laporan ${esc(r.election.name)}</title><style>body{font-family:sans-serif;padding:24px;color:#0f172a}.brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c2668;padding-bottom:12px;margin-bottom:18px}.brand img{height:44px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:8px}th{background:#f1f5f9}code{word-break:break-all}</style></head><body>
-<div class="brand"><img src="/ciptakita-logo.png" alt="CiptaKita.id" /><div style="text-align:right;font-size:12px;color:#475569"><b>Pilihan Kita</b><br>${esc(r.election.school_name || '')}</div></div>
+        const rows = r.candidates.map((c) => `<tr><td style="text-align:center">${c.number}</td><td>${esc(c.name)}</td><td style="text-align:right">${c.votes}</td><td style="text-align:right">${c.percent}%</td></tr>`).join('');
+        const totalVotes = r.candidates.reduce((sum, c) => sum + (c.votes || 0), 0);
+        const totalRow = `<tr class="total"><td colspan="2" style="text-align:right">Total suara</td><td style="text-align:right">${totalVotes}</td><td style="text-align:right">${totalVotes > 0 ? '100%' : '0%'}</td></tr>`;
+        // Logo sumber punya ruang transparan di sekelilingnya → dipangkas (sama seperti komponen BrandLogo) agar tampil besar & tajam.
+        const logoUrl = `${window.location.origin}/ciptakita-logo.png`;
+        w.document.write(`<html><head><title>Laporan ${esc(r.election.name)}</title><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:sans-serif;padding:24px;color:#0f172a}.brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c2668;padding-bottom:14px;margin-bottom:20px}.logo{position:relative;overflow:hidden;height:84px;aspect-ratio:860/312}.logo img{position:absolute;width:119.07%;height:218.59%;left:-10.7%;top:-55.77%;max-width:none}table{border-collapse:collapse;width:100%}td,th{border:1px solid #cbd5e1;padding:8px}th{background:#f1f5f9}table.hasil th:first-child,table.hasil td:first-child{width:56px}tr.total td{background:#eef2ff;font-weight:700;border-top:2px solid #0c2668}code{word-break:break-all}</style></head><body>
+<div class="brand"><div class="logo"><img src="${logoUrl}" alt="CiptaKita.id" /></div><div style="text-align:right;font-size:13px;color:#475569"><b style="font-size:15px;color:#0f172a">Pilihan Kita</b><br>${esc(r.election.school_name || '')}</div></div>
 <h2>Laporan Hasil — ${esc(r.election.name)}</h2><p>Status: ${STATUS_LABEL[r.election.status]} · Dibuat: ${formatDateTime(data.generated_at)}</p>
-<table><tr><th>No</th><th>Kandidat</th><th>Suara</th><th>%</th></tr>${rows}</table>
+<table class="hasil"><tr><th>No</th><th>Kandidat</th><th>Suara</th><th>%</th></tr>${rows}${totalRow}</table>
 <p>Partisipasi: siswa ${r.participation.students.voted}/${r.participation.students.total}, guru ${r.participation.teachers.voted}/${r.participation.teachers.total}, total ${r.participation.all.voted}/${r.participation.all.total}.</p>
 <p>Verifikasi ledger: <b>${data.verification.ok ? 'VALID' : 'TIDAK VALID'}</b> — ${data.verification.sealed} suara tersegel, ${data.verification.pending} menunggu.</p>
 <p>Hash terakhir: <code>${data.verification.head ?? '-'}</code></p>
