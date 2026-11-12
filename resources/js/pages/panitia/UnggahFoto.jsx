@@ -9,12 +9,15 @@ import { IconUpload } from '../../components/Icons';
 import { IMAGE_ACCEPT, IMAGE_LABEL, IMAGE_NAME } from '../../lib/image';
 import { Alert, Badge, ProgressBar, Spinner } from '../../components/ui';
 
-/** Nama berkas → kunci pemilih: "0071234567.jpg" → "0071234567", "id-15.png" → "id-15". */
-function keyFromFile(name) {
-    const base = name.replace(/\.[^.]+$/, '').trim();
-    const m = base.match(/^id-\d+$/i);
-    if (m) return base.toLowerCase();
-    return base.replace(/[\s.\-_]/g, '');
+/**
+ * Berkas → kunci pencocokan: jalur relatif tanpa ekstensi, mis. "XI IPA 1/0071234567 - Ahmad Fauzi".
+ * Server mengenali NISN/NIP, "id-15", NISN di dalam nama, atau nama pemilih (folder = petunjuk kelas).
+ */
+function keyFromFile(file) {
+    const path = (file.webkitRelativePath || file.name).replace(/\.[^./]+$/, '').trim();
+    const parts = path.split('/');
+    // Cukup folder induk terdekat + nama berkas; batasi panjang (server menerima ≤ 255 karakter).
+    return parts.slice(-2).join('/').slice(-250);
 }
 
 const ACCEPT = IMAGE_NAME; // JPG, PNG, WebP, GIF, BMP, AVIF, HEIC/HEIF
@@ -29,6 +32,9 @@ export default function UnggahFoto() {
     const [items, setItems] = useState([]);
     const [running, setRunning] = useState(false);
     const [overwrite, setOverwrite] = useState(false);
+    const [matching, setMatching] = useState(false);
+    const [lookupError, setLookupError] = useState(null);
+    const [ignored, setIgnored] = useState(0);
     const stopRef = useRef(false);
 
     const status = useQuery({ queryKey: ['face-status'], queryFn: () => api.get('/panitia/face-templates/status').then((r) => r.data), refetchInterval: running ? 5000 : false });
@@ -47,35 +53,58 @@ export default function UnggahFoto() {
     }
 
     async function onFiles(fileList) {
-        const files = [...fileList].filter((f) => ACCEPT.test(f.name));
-        if (!files.length) return;
-        const keys = [...new Set(files.map((f) => keyFromFile(f.name)))];
+        const all = [...fileList];
+        // Urut alami tanpa ekstensi: "0071.jpg" sebelum "0071 (2).jpg" → berkas asli yang dipakai bila ganda.
+        const sortKey = (f) => (f.webkitRelativePath || f.name).replace(/\.[^./]+$/, '');
+        const files = all.filter((f) => ACCEPT.test(f.name)).sort((a, b) => sortKey(a).localeCompare(sortKey(b), 'id', { numeric: true }));
+        setLookupError(null);
+        setIgnored(all.length - files.length);
+        if (!files.length) {
+            setItems([]);
+            if (all.length) setLookupError(`Tidak ada berkas gambar di pilihan ini (${all.length} berkas lain dilewati).`);
+            return;
+        }
+        const keys = [...new Set(files.map(keyFromFile))];
         let map = {};
+        let problems = {};
+        setMatching(true);
         try {
             // Server membatasi 2.000 kunci per permintaan.
             for (let i = 0; i < keys.length; i += 2000) {
                 const { data } = await api.post('/panitia/face-templates/lookup', { keys: keys.slice(i, i + 2000) });
                 map = { ...map, ...data.data };
+                problems = { ...problems, ...(data.problems || {}) };
             }
         } catch (e) {
-            setItems([{ name: '—', status: 'error', reasons: [errorMessage(e)] }]);
+            setItems([]);
+            setLookupError(`Gagal mencocokkan nama berkas dengan data pemilih: ${errorMessage(e)}`);
             return;
+        } finally {
+            setMatching(false);
         }
+        const seen = new Map(); // id pemilih → berkas pertama
         setItems(
             files.map((file) => {
-                const key = keyFromFile(file.name);
+                const key = keyFromFile(file);
                 const voter = map[key];
-                return {
-                    file,
-                    name: file.name,
-                    key,
-                    voter,
-                    status: voter ? 'queued' : 'error',
-                    reasons: voter ? [] : ['Nama berkas tidak cocok dengan NISN/NIP/ID pemilih mana pun'],
-                };
+                const name = file.webkitRelativePath || file.name;
+                if (!voter) {
+                    return { file, name, key, status: 'error', reasons: [problems[key] || 'Tidak cocok dengan pemilih mana pun. Beri nama berkas sesuai NISN/NIP atau nama lengkap pemilih'] };
+                }
+                if (seen.has(voter.id)) {
+                    return { file, name, key, voter, status: 'skipped', reasons: [`Foto lain untuk pemilih yang sama sudah ada (${seen.get(voter.id)})`] };
+                }
+                seen.set(voter.id, file.name);
+                return { file, name, key, voter, status: 'queued', reasons: [] };
             }),
         );
     }
+
+    /** Input berkas dikosongkan agar memilih berkas/folder yang sama lagi tetap memicu onChange. */
+    const pick = (e) => {
+        onFiles(e.target.files);
+        e.target.value = '';
+    };
 
     async function processAll() {
         if (!(await ensureEngine())) return;
@@ -174,7 +203,7 @@ export default function UnggahFoto() {
             )}
 
             <Alert type="info" title="Cara pakai">
-                Beri nama berkas sesuai <strong>NISN</strong> (siswa) atau <strong>NIP</strong> (guru), mis. <code>0071234567.jpg</code>. Guru tanpa NIP: <code>id-&lt;ID pemilih&gt;.jpg</code> (ID terlihat di menu Pemilih). Pilih banyak berkas sekaligus atau satu folder. Syarat: tepat 1 wajah, menghadap depan, terang, tidak buram.
+                Nama berkas dikenali bila berisi <strong>NISN/NIP</strong> (mis. <code>0071234567.jpg</code>, <code>0071234567 - Ahmad Fauzi.jpg</code>, <code>Ahmad_0071234567.png</code>) atau <strong>nama lengkap</strong> pemilih (<code>Ahmad Fauzi.jpg</code>). Bila ada nama kembar, nama folder dipakai sebagai petunjuk kelas (mis. folder <code>XI IPA 1</code>); masih kembar → ganti nama berkas dengan NISN. Guru tanpa NIP: nama lengkap atau <code>id-&lt;ID pemilih&gt;.jpg</code>. Pilih banyak berkas sekaligus atau satu folder (berkas bukan gambar dilewati). Syarat foto: tepat 1 wajah, menghadap depan, terang, tidak buram.
             </Alert>
 
             <section className="card space-y-5">
@@ -183,13 +212,13 @@ export default function UnggahFoto() {
                         <IconUpload className="size-6 text-brand-700" />
                         <span className="text-sm font-bold text-slate-800">Pilih berkas foto</span>
                         <span className="text-xs text-slate-500">{IMAGE_LABEL} (bisa banyak sekaligus)</span>
-                        <input type="file" accept={IMAGE_ACCEPT} multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} disabled={running} />
+                        <input type="file" accept={IMAGE_ACCEPT} multiple className="sr-only" onChange={pick} disabled={running || matching} />
                     </label>
                     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 p-4 text-center transition hover:border-brand-500 hover:bg-brand-50/40">
                         <IconUpload className="size-6 text-brand-700" />
                         <span className="text-sm font-bold text-slate-800">Pilih satu folder</span>
                         <span className="text-xs text-slate-500">Muat seluruh folder pas foto kelas/sekolah</span>
-                        <input type="file" webkitdirectory="" directory="" multiple className="sr-only" onChange={(e) => onFiles(e.target.files)} disabled={running} />
+                        <input type="file" webkitdirectory="" directory="" multiple className="sr-only" onChange={pick} disabled={running || matching} />
                     </label>
                 </div>
 
@@ -204,12 +233,15 @@ export default function UnggahFoto() {
                     </div>
                 )}
                 {engine.error && <Alert type="danger" title="Model gagal dimuat">{engine.error}</Alert>}
+                {matching && <Spinner label="Mencocokkan nama berkas dengan data pemilih…" />}
+                {lookupError && <Alert type="danger">{lookupError}</Alert>}
 
                 {items.length > 0 && (
                     <>
                         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
                             <p className="text-sm font-medium text-slate-600">
-                                {items.length} berkas · selesai {doneCount} · gagal {counts.error || 0} · perlu dicek {counts.warning || 0}
+                                {items.length} foto · cocok {items.filter((it) => it.voter).length} · selesai {doneCount} · gagal {counts.error || 0} · perlu dicek {counts.warning || 0}
+                                {ignored > 0 && ` · ${ignored} berkas bukan gambar dilewati`}
                             </p>
                             <div className="flex gap-2">
                                 {running ? (

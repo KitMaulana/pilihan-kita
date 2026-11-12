@@ -9,6 +9,7 @@ use App\Models\FaceTemplate;
 use App\Models\Voter;
 use App\Services\FaceMatchService;
 use App\Services\FaceTemplateService;
+use App\Services\PhotoFileMatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -34,42 +35,25 @@ class FaceTemplateController extends Controller
     }
 
     /**
-     * Mencocokkan nama berkas foto (NISN/NIP atau "id-123") dengan pemilih
-     * sebelum foto diproses di browser.
+     * Mencocokkan nama berkas foto (NISN/NIP, "id-123", NISN di dalam nama, atau nama pemilih)
+     * dengan pemilih sekolah aktif sebelum foto diproses di browser. Satu nama berkas yang aneh
+     * tidak menggagalkan seluruh daftar — hanya berkas itu yang tidak cocok.
      */
-    public function lookup(Request $request): JsonResponse
+    public function lookup(Request $request, PhotoFileMatcher $matcher): JsonResponse
     {
         $request->validate([
             'keys' => ['required', 'array', 'max:2000'],
-            'keys.*' => ['string', 'max:40'],
+            'keys.*' => ['nullable', 'string'],
+        ], [
+            'keys.max' => 'Maksimal 2.000 berkas per pencocokan.',
         ]);
 
-        $electionId = Election::current()?->id ?? 0;
-        $keys = collect($request->input('keys'))->map(fn ($k) => trim($k))->unique();
-        $ids = $keys->filter(fn ($k) => preg_match('/^id-\d+$/i', $k))->map(fn ($k) => (int) substr($k, 3));
-        $identifiers = $keys->reject(fn ($k) => preg_match('/^id-\d+$/i', $k))->map(fn ($k) => preg_replace('/[\s.\-]/', '', $k));
+        $keys = collect($request->input('keys'))
+            ->filter(fn ($k) => is_string($k) && $k !== '' && mb_strlen($k) <= 255)
+            ->values()->all();
 
-        $voters = Voter::with('faceTemplate')->where('election_id', $electionId)
-            ->where(fn ($q) => $q->whereIn('identifier', $identifiers->values())->orWhereIn('id', $ids->values()))
-            ->get();
-
-        $map = [];
-        foreach ($voters as $v) {
-            $entry = [
-                'id' => $v->id,
-                'name' => $v->name,
-                'class_name' => $v->displayClass(),
-                'has_face' => $v->faceTemplate !== null,
-            ];
-            if ($v->identifier) {
-                $map[$v->identifier] = $entry;
-            }
-            $map['id-'.$v->id] = $entry;
-        }
-
-        return response()->json(['data' => $map]);
+        return response()->json($matcher->match($keys, Election::current()?->id ?? 0));
     }
-
     public function store(FaceTemplateStoreRequest $request, FaceTemplateService $service): JsonResponse
     {
         if ($request->input('model_version') !== config('security.face_model_version')) {
